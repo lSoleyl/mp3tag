@@ -6,6 +6,7 @@ var tag = require('./mp3tag')
 var File = require('./file')
 
 
+
 //TODO do something with command line args...
 //console.dir(argv)
 
@@ -16,12 +17,21 @@ if (!path) {
   return
 }
 
-function print(str) {
+function print(str, decodefn) {
+  var decfn = decodefn || tag.decodeString
   return function(err, res) {
     if (err) 
       return console.error("error: " + err)
 
-    console.log(str + res)
+    var data = _.map(res, function(buffer) {
+      var result = decfn(buffer)
+      if (typeof result !== 'string')
+        result = JSON.stringify(result, null, 2)
+
+      return result
+    }).join(';')
+
+    console.log(str + data)
   }
 }
 
@@ -39,14 +49,14 @@ tag.readHeader(path, function(err, tagData) {
   console.dir(tagData)
   console.log("\n")
 
-  function printOut(id, asName) {
-    tagData.getFrameData(id, print(asName + ": "))
+  function printOut(id, asName, decodefn) {
+    tagData.getFrameData(id, print(asName + ": ", decodefn))
   }
 
   printOut('TIT2', "Title")
   printOut('TRCK', "Track")
   printOut('TALB', "Album")
-  printOut('COMM', "Comment")
+  printOut('COMM', "Comment", tag.decodeComment)
   printOut('TYER', "Year")
   printOut('TPE1', "Lead performer")
 })

@@ -30,7 +30,9 @@ var from = {
     return result
   },
 
-  "utf-16le": function(buffer) { return buffer.toString('utf16le') }
+  "utf-16le": function(buffer) { return buffer.toString('utf16le') },
+
+  "utf-8": function(buffer) { return buffer.toString('utf8') }
 }
 
 

@@ -1,32 +1,74 @@
 var fs = require('fs')
 var File = require('./file')
+var cp = require('./cp')
+
 var async = require('async')
 var _ = require('lodash')
-var Iconv = require('iconv').Iconv
-
-var converters = {
-  //FIXME throws an error on windows (use different library?)
-  //'ISO-8895-1': new Iconv('ISO-8895-1', 'UTF-8')
-}
+var util = require('util')
 
 module.exports = {
-  readHeader: function(path,callback) { 
-    readID3v2(path,callback) 
-  },
+  readHeader: function(path,callback) { return readID3v2(path,callback) },
 
   //TODO function for decoding picture data from a buffer
 
-  decodeStringBuffer: function(buffer) {
-    if(buffer[0] === 0x00 && buffer[1] !== 0x00) {
-      return converters['ISO-8895-1'].convert(buffer.slice(1)).toString('utf8')
+  decodeString: function(buffer) {
+    if (!(buffer instanceof Buffer)) {
+      throw new Error("Expected buffer, got: " + typeof(buffer) + " - " + util.inspect(buffer, {showHidden:true}))
+    }
+
+    var data = buffer.slice(1)
+    if(buffer[0] === 0x00) { //ISO 8895-1 encoding
+      return cp.fromBuffer(data, 'ISO-8895-1')
+    } else if (buffer[0] == 0x01) { //Unicode encoding determined by BOM
+      return decodeUnicodeBuffer(data)
     } else { //TODO support unicode encoding
       throw new Error("Unsupported buffer encoding: " + buffer.inspect())
+    }
+  }, 
+
+
+  decodeComment:function(buffer) {
+    if (!(buffer instanceof Buffer)) {
+      throw new Error("Expected buffer, got: " + typeof(buffer) + " - " + util.inspect(buffer, {showHidden:true}))
+    }
+
+
+    var encodingByte = buffer[0]
+    var language = buffer.toString('ascii', 1, 3)
+    var data = buffer.slice(4)
+    
+    if (encodingByte == 0x00)
+      encoding = {encoding:'ISO-8895-1', bom:[], dbe:false}
+    else if (encodingByte == 0x01)
+      encoding = getBufferEncoding(data)
+    else
+      throw new Error("Unsupported buffer encoding: " + buffer.inspect())
+
+    var offset = getStringEndPos(data, encoding.dbe)
+    
+    if (offset == -1) 
+      throw new Error("Passed buffer isn't a correctly formatted comment frame!")
+
+    var shortComment = decodeUnicodeBuffer(data.slice(0, offset))
+    var longComment = decodeUnicodeBuffer(data.slice(offset + (encoding.dbe ? 2 : 1)))
+
+    return {
+      language:language,
+      short:shortComment,
+      long:longComment
     }
   }
 
   //TODO export functions
 }
 
+
+var BOMs = [
+  {encoding:'UTF-16LE', bom:[0xFF, 0xFE], dbe:true},
+  {encoding:'UTF-16BE', bom:[0xFE, 0xFF], dbe:true},
+  {encoding:'UTF-8',    bom:[0xEF, 0xBB, 0xBF], dbe:false},
+  {encoding:'UTF-8',    bom:[], dbe:false} //Empty bom sets the default codepage
+]
 
 function TagData(file, version, flags, size, frames) {
   this.file = file        //File read from
@@ -52,12 +94,51 @@ TagData.prototype.getFrameData = function(id, callback) {
 }
 
 
+/** Returns the offset of the NULL (double-)byte inside a string buffer
+ *
+ * @param buffer the buffer to search
+ * @param isDoubleNull if true, the function treats the byte buffer like a two byte encoding
+ */
+function getStringEndPos(buffer, isDoubleNull) {
+  for(var c = 0; c < buffer.length; ++c) {
+    if (buffer[c] == 0x00 && !isDoubleNull) 
+      return c
+    else if (buffer[c] == 0x00 && buffer[c+1] == 0x00 && isDoubleNull) {
+      return c
+    }
+
+    if (isDoubleNull)
+      ++c //Additional increment if double byte NULL is expected
+  }
+
+  return -1 //Not found
+}
+
 /** Decodes a 7bit encoded unsigned integer:
  *  Format: 0b0xxxxxx0xxxxxx0xxxxxx0xxxxxx
  */
 function decodeUInt7Bit(uint7bit) {
   var x = uint7bit
   return (x & 0x7F) | ((x & 0x7F00) >> 1) | ((x & 0x7F0000) >> 2) | ((x & 0x7F000000) >> 3)
+}
+
+
+function getBufferEncoding(buffer) {
+  return _.find(BOMs, function(encoding) {
+    for(var c = 0; c < encoding.bom.length; ++c) {
+      if (buffer[c] !== encoding.bom[c]) 
+        return false
+    }
+
+    return true
+  })
+}
+
+/** Decodes a buffer encoded by a unicode encoding, which is identified by a BOM
+ */
+function decodeUnicodeBuffer(buffer) {
+  var encoding = getBufferEncoding(buffer)
+  return cp.fromBuffer(buffer.slice(encoding.bom.length), encoding.encoding)
 }
 
 /** 
@@ -101,7 +182,7 @@ function readID3v2(path, callback) {
             return callback(err)
 
           frames = frames || []
-          frames = _.filter(frames, function(frame) { return frame.data.size > 0 })
+          frames = _.filter(frames, function(frame) { return frame.data.size > 0 && frame.id !== "\0\0\0\0" })
 
           process.nextTick(function() { callback(null, 
             new TagData(file, {'major':majorVersion, 'minor':minorVersion}, flags, headerSize, frames))
