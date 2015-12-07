@@ -1,0 +1,23 @@
+{
+  "name":"mp3tag",
+  "version":"0.0.1",
+  "description":"A tool for changing mp3 tag data",
+  "autor":"lSoleyl <lsoleyl@gmail.com>",
+  "main":"mp3tag.js",
+  "repository": {
+    "type":"git",
+    "url":"https://github.com/lSoleyl/mp3tag"
+  },
+  "bugs": {
+    "url":"https://github.com/lSoleyl/mp3tag/issues"
+  },
+  "keywords":["mp3", "id3", "id3v2"],
+  "dependencies": {
+    "async": "*",
+    "lodash": "*",
+    "minimist":"1.2.0"
+  },
+  "preferGlobal":false,
+  "private":true,
+  "license":"MIT"
+}
