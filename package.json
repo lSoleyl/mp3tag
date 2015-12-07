@@ -15,7 +15,8 @@
   "dependencies": {
     "async": "*",
     "lodash": "*",
-    "minimist":"1.2.0"
+    "minimist":"1.2.0",
+    "iconv":"*"
   },
   "preferGlobal":false,
   "private":true,

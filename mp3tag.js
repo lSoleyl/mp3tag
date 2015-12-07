@@ -2,11 +2,26 @@ var fs = require('fs')
 var File = require('./file')
 var async = require('async')
 var _ = require('lodash')
+var Iconv = require('iconv').Iconv
+
+var converters = {
+  'ISO-8895-1': new Iconv('ISO-8895-1', 'UTF-8')
+}
 
 module.exports = {
   readHeader: function(path,callback) { 
     readID3v2(path,callback) 
+  },
+
+
+  decodeStringBuffer: function(buffer) {
+    if(buffer[0] === 0x00 && buffer[1] !== 0x00) {
+      return converters['ISO-8895-1'].convert(buffer.slice(1)).toString('utf8')
+    } else {
+      throw new Error("Unsupported buffer encoding: " + buffer.inspect())
+    }
   }
+
   //TODO export functions
 }
 
