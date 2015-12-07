@@ -5,7 +5,8 @@ var _ = require('lodash')
 var Iconv = require('iconv').Iconv
 
 var converters = {
-  'ISO-8895-1': new Iconv('ISO-8895-1', 'UTF-8')
+  //FIXME throws an error on windows (use different library?)
+  //'ISO-8895-1': new Iconv('ISO-8895-1', 'UTF-8')
 }
 
 module.exports = {
@@ -13,11 +14,12 @@ module.exports = {
     readID3v2(path,callback) 
   },
 
+  //TODO function for decoding picture data from a buffer
 
   decodeStringBuffer: function(buffer) {
     if(buffer[0] === 0x00 && buffer[1] !== 0x00) {
       return converters['ISO-8895-1'].convert(buffer.slice(1)).toString('utf8')
-    } else {
+    } else { //TODO support unicode encoding
       throw new Error("Unsupported buffer encoding: " + buffer.inspect())
     }
   }
