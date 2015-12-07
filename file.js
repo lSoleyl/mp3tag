@@ -28,8 +28,20 @@ File.prototype.read = function(buffer, offset, length, callback) {
   })
 }
 
-File.prototype.seek = function(bytes) {
-  this.pos += (bytes || 0)
+File.prototype.readSlice = function(data, callback) {
+  var buffer = new Buffer(data.size)
+  fs.read(this.fd, buffer, 0, data.size, data.offset, callback)
+}
+
+/** Sets the file position further by the specified amount of bytes, relative to
+ *  either 'pos' or 'start'
+ * 
+ * @param byte the amount of bytes to move forward
+ * @param relativeTo the position to move relative to 'pos' = current pos, 'start' = file start
+ */
+File.prototype.seek = function(bytes, relativeTo) {
+  var offset = (relativeTo == 'start') ? 0 : this.pos
+  this.pos = offset + bytes
 }
 
 
