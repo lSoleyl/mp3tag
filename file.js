@@ -28,6 +28,17 @@ File.prototype.read = function(buffer, offset, length, callback) {
   })
 }
 
+File.prototype.write = function(buffer, callback) {
+  fs.write(this.fd, buffer, 0, buffer.length, null, function(err, bytes, buffer) {
+    if(err)
+      return callback(err)
+
+    this.pos += bytes
+
+    process.nextTick(function() { callback(null, bytes, buffer) })
+  })
+}
+
 File.prototype.readSlice = function(data, callback) {
   var buffer = new Buffer(data.size)
   fs.read(this.fd, buffer, 0, data.size, data.offset, callback)

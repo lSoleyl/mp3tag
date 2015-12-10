@@ -17,11 +17,9 @@ module.exports = {
     }
 
     var data = buffer.slice(1)
-    if(buffer[0] === 0x00) { //ISO 8895-1 encoding
-      return cp.fromBuffer(data, 'ISO-8895-1')
-    } else if (buffer[0] == 0x01) { //Unicode encoding determined by BOM
-      return decodeUnicodeBuffer(data)
-    } else { //TODO support unicode encoding
+    try {
+      return decodeString(data, buffer[0])
+    } catch(e) {
       throw new Error("Unsupported buffer encoding: " + buffer.inspect())
     }
   }, 
@@ -37,27 +35,53 @@ module.exports = {
     var language = buffer.toString('ascii', 1, 3)
     var data = buffer.slice(4)
     
-    if (encodingByte == 0x00)
-      encoding = {encoding:'ISO-8895-1', bom:[], dbe:false}
-    else if (encodingByte == 0x01)
-      encoding = getBufferEncoding(data)
-    else
+    try {
+      encoding = getBufferEncoding(data, encodingByte)
+    } catch (e) {
       throw new Error("Unsupported buffer encoding: " + buffer.inspect())
+    }
 
-    var offset = getStringEndPos(data, encoding.dbe)
-    
+    var cData = decodeCString(data, encodingByte) //TODO try catch other error
+
+    var shortComment = cData.string
+    var longComment = decodeString(data.slice(cData.pastNullPos))
+
+/*
     if (offset == -1) 
       throw new Error("Passed buffer isn't a correctly formatted comment frame!")
-
-    var shortComment = decodeUnicodeBuffer(data.slice(0, offset))
-    var longComment = decodeUnicodeBuffer(data.slice(offset + (encoding.dbe ? 2 : 1)))
-
+*/
     return {
       language:language,
       short:shortComment,
       long:longComment
     }
+  },
+
+  decodePicture: function(buffer) {
+    if (!(buffer instanceof Buffer)) {
+      throw new Error("Expected buffer, got: " + typeof(buffer) + " - " + util.inspect(buffer, {showHidden:true}))
+    }
+
+    var encodingByte = buffer[0]
+
+    var dataBuffer = buffer.slice(1)         //v-- MIME will always be ISO-8895-1
+    var mimeData = decodeCString(dataBuffer, 0x00)
+    var mimeType = mimeData.string
+    var pictureType = dataBuffer[mimeData.pastNullPos]
+    var descriptionBuffer = dataBuffer.slice(mimeData.pastNullPos + 1)
+    var descData = decodeCString(descriptionBuffer, encodingByte)
+    var description = descData.string
+    var pictureData = descriptionBuffer.slice(descData.pastNullPos)
+
+    return {
+      encoding: encodingByte,  //Integer
+      mimeType: mimeType,      //String
+      pictureType: pictureType,//Integer
+      description: description,//String
+      pictureData: pictureData //Buffer
+    }
   }
+
 
   //TODO export functions
 }
@@ -93,6 +117,42 @@ TagData.prototype.getFrameData = function(id, callback) {
   }, callback)
 }
 
+/** Receives a zero terminated buffer to decode from and the encoding byte
+ *  
+ * @param buffer the buffer to read the string from
+ * @param encodingByte the byte, which specifies encoding
+ *
+ * @return returns {string,nullPos,pastNullPos}
+ */
+function decodeCString(buffer, encodingByte) {
+  var encoding = getBufferEncoding(buffer, encodingByte)
+
+  var result = {}
+  result.nullPos = getStringEndPos(buffer, encoding.dbe)
+
+  if (result.nullPos == -1)
+    throw new Error("Expected NULL terminated string, missing NULL byte(s), with encoding: " + encoding.encoding)
+
+  result.pastNullPos = result.nullPos + (encoding.dbe ? 2 : 1)
+
+  var contentslice = buffer.slice(encoding.bom.length, result.nullPos - encoding.bom.length)
+  
+  result.string = cp.fromBuffer(contentslice, encoding.encoding)
+  return result
+}
+
+/** Same as decodeCString, but this string isn't zero terminated. The whole
+ *  buffer is treated as string.
+ * 
+ * @param buffer the buffer to read from
+ * @param encodingByte the byte which specifies, which encoding to use
+ *
+ * @return decoded string
+ */
+function decodeString(buffer, encodingByte) {
+  var encoding = getBufferEncoding(buffer, encodingByte)
+  return cp.fromBuffer(buffer.slice(encoding.bom.length), encoding.encoding)
+}
 
 /** Returns the offset of the NULL (double-)byte inside a string buffer
  *
@@ -123,22 +183,25 @@ function decodeUInt7Bit(uint7bit) {
 }
 
 
-function getBufferEncoding(buffer) {
-  return _.find(BOMs, function(encoding) {
-    for(var c = 0; c < encoding.bom.length; ++c) {
-      if (buffer[c] !== encoding.bom[c]) 
-        return false
-    }
+function getBufferEncoding(buffer, encodingByte) {
+  if (encodingByte === undefined)
+    encodingByte = 0x01 //Default is unicode if not passed
 
-    return true
-  })
-}
+  if (encodingByte === 0x00) //ISO-8895-1 encoding
+    return {encoding:'ISO-8895-1', bom:[], dbe:false}
 
-/** Decodes a buffer encoded by a unicode encoding, which is identified by a BOM
- */
-function decodeUnicodeBuffer(buffer) {
-  var encoding = getBufferEncoding(buffer)
-  return cp.fromBuffer(buffer.slice(encoding.bom.length), encoding.encoding)
+  if (encodingByte === 0x01) { //UC (search for BOM and look up)
+    return _.find(BOMs, function(encoding) {
+      for(var c = 0; c < encoding.bom.length; ++c) {
+        if (buffer[c] !== encoding.bom[c]) 
+          return false
+      }
+
+      return true
+    })
+  }
+
+  throw new Error("Unknown encoding byte: '" + encodingByte + "'")
 }
 
 /** 

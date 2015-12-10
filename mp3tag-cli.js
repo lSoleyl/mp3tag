@@ -59,5 +59,29 @@ tag.readHeader(path, function(err, tagData) {
   printOut('COMM', "Comment", tag.decodeComment)
   printOut('TYER', "Year")
   printOut('TPE1', "Lead performer")
+  printOut('APIC', "Picture", function(buffer) {
+    var res = tag.decodePicture(buffer)
+    res.pictureData = res.pictureData.inspect()
+    return res
+  })
+
+  tagData.getFrameData('APIC', function(err, frames) {
+    if (frames[0]) {
+      var pic = tag.decodePicture(frames[0])
+      var filename = "cover." + pic.mimeType.split('/')[1]
+      File.open(filename, "w", function(err, file) {
+        if (err) 
+          throw err
+
+        file.write(pic.pictureData, function(err,res) {
+          if (err)
+            throw err
+          file.close()
+          console.log("Exported cover picture to: " + filename + " (" + res + " bytes written)")
+        })
+      })
+    }
+  })
+
 })
 
