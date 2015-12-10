@@ -3,18 +3,20 @@
 var _ = require('lodash')
 
 module.exports = {
-  fromBuffer: function(buffer, encoding) { 
-    var decoder = from[String(encoding).toLowerCase()]
+  fromBuffer: function(buffer, encoding) {
+    encoding = String(encoding).toLowerCase()
+    var decoder = from[encoding]
     if (!decoder)
-      throw new Error("Unsupported encoding: " + encoding)
+      throw new Error("Unsupported encoding: '" + encoding + "'")
 
     return decoder(buffer)
   },
 
   fromString: function(string, encoding) { 
-    var encoder = to[String(encoding).toLowerCase()]
+    encoding = String(encoding).toLowerCase()
+    var encoder = to[encoding]
     if (!encoder)
-      throw new Error("Unsupported encoding: " + encoding)
+      throw new Error("Unsupported encoding: '" + encoding + "'")
 
     return encoder(string)
   }
@@ -22,7 +24,7 @@ module.exports = {
 
 
 var from = {
-  "iso-8859-1": function(buffer) {
+  "iso-8895-1": function(buffer) {
     var result = ""
     _.each(buffer, function(byte) {
       result += String.fromCharCode(byte)
