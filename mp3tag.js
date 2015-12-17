@@ -51,7 +51,7 @@ module.exports = {
       long:longComment
     }
   },
-
+                           //v- TODO also decode from data
   decodePicture: function(buffer) {
     if (!(buffer instanceof Buffer)) {
       throw new Error("Expected buffer, got: " + typeof(buffer) + " - " + util.inspect(buffer, {showHidden:true}))
@@ -73,7 +73,7 @@ module.exports = {
       mimeType: mimeType,      //String
       pictureType: pictureType,//Integer
       description: description,//String
-      pictureData: new Data(pictureData) //BufferedData
+      pictureData: new Data(pictureData) //BufferData
     }
   }
 
@@ -100,12 +100,15 @@ function TagData(file, version, flags, size, frames) {
 /** Returns an array of frame buffers, which are identified
  *  by the given id
  */
-TagData.prototype.getFrameData = function(id, callback) {
-  var data = []
-  var file = this.file
+TagData.prototype.getFrameBuffer = function(id, callback) {
   var frames = _.filter(this.frames, function(frame) { return frame.id == id })
 
   async.map(frames, function(frame, cb) { frame.data.toBuffer(cb) }, callback)
+}
+
+TagData.prototype.getFrameData = function(id) {
+  var frames = _.filter(this.frames, function(frame) { return frame.id == id })
+  return _.map(frames, function(frame) { return frame.data })
 }
 
 /** Receives a zero terminated buffer to decode from and the encoding byte

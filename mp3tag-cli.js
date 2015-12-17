@@ -45,7 +45,7 @@ tag.readHeader(path, function(err, tagData) {
   console.log("\n")
 
   function printOut(id, asName, decodefn) {
-    tagData.getFrameData(id, print(asName + ": ", decodefn))
+    tagData.getFrameBuffer(id, print(asName + ": ", decodefn))
   }
 
   printOut('TIT2', "Title")
