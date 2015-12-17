@@ -1,9 +1,10 @@
 var fs = require('fs')
 
-function File(fd, name) {
+function File(fd, name, size) {
   this.fd = fd
   this.name = name
   this.pos = 0
+  this.size = size
 }
 
 File.open = function(path, mode, callback) {
@@ -11,7 +12,12 @@ File.open = function(path, mode, callback) {
     if (err)
       return callback(err)
 
-    process.nextTick(function() { callback(null, new File(fd, path)) })
+    fs.stat(path, function(err, stat) {
+      if (err)
+        return callback(err)
+
+      process.nextTick(function() { callback(null, new File(fd, path, stat.size)) })  
+    })
   })
 }
 
@@ -29,7 +35,11 @@ File.prototype.read = function(buffer, offset, length, callback) {
 }
 
 File.prototype.write = function(buffer, callback) {
-  fs.write(this.fd, buffer, 0, buffer.length, null, function(err, bytes, buffer) {
+  this.writeSlice(buffer, 0, buffer.length, callback)
+}
+
+File.prototype.writeSlice = function(buffer, offset, length, callback) {
+  fs.write(this.fd, buffer, offset, length, null, function(err, bytes, buffer) {
     if(err)
       return callback(err)
 
@@ -39,9 +49,9 @@ File.prototype.write = function(buffer, callback) {
   })
 }
 
-File.prototype.readSlice = function(data, callback) {
-  var buffer = new Buffer(data.size)
-  fs.read(this.fd, buffer, 0, data.size, data.offset, callback)
+File.prototype.readSlice = function(offset, length, callback) {
+  var buffer = new Buffer(length)
+  fs.read(this.fd, buffer, 0, length, offset, callback)
 }
 
 /** Sets the file position further by the specified amount of bytes, relative to

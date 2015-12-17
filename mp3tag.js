@@ -1,5 +1,6 @@
 var fs = require('fs')
 var File = require('./file')
+var Data = require('./data')
 var cp = require('./cp')
 
 var async = require('async')
@@ -8,8 +9,6 @@ var util = require('util')
 
 module.exports = {
   readHeader: function(path,callback) { return readID3v2(path,callback) },
-
-  //TODO function for decoding picture data from a buffer
 
   decodeString: function(buffer) {
     if (!(buffer instanceof Buffer)) {
@@ -46,10 +45,6 @@ module.exports = {
     var shortComment = cData.string
     var longComment = decodeString(data.slice(cData.pastNullPos))
 
-/*
-    if (offset == -1) 
-      throw new Error("Passed buffer isn't a correctly formatted comment frame!")
-*/
     return {
       language:language,
       short:shortComment,
@@ -78,7 +73,7 @@ module.exports = {
       mimeType: mimeType,      //String
       pictureType: pictureType,//Integer
       description: description,//String
-      pictureData: pictureData //Buffer
+      pictureData: new Data(pictureData) //BufferedData
     }
   }
 
@@ -110,11 +105,7 @@ TagData.prototype.getFrameData = function(id, callback) {
   var file = this.file
   var frames = _.filter(this.frames, function(frame) { return frame.id == id })
 
-  async.map(frames, function(frame, cb) {
-    file.readSlice(frame.data, function(err, b, buffer) {
-      return cb(err, buffer)
-    })
-  }, callback)
+  async.map(frames, function(frame, cb) { frame.data.toBuffer(cb) }, callback)
 }
 
 /** Receives a zero terminated buffer to decode from and the encoding byte
@@ -293,10 +284,7 @@ function readFrame(file, callback) {
 
     process.nextTick(function() { callback(null, { 
       id:id,           //Four character frame id
-      data: {      
-        offset:pos,    //Offset of frame's data
-        size:size      //Length of frame's data in bytes
-      },
+      data: new Data(file, pos, size), //Frame content reference
       flags:flags      //Frame header flags
     })})
   })

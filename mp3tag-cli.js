@@ -5,11 +5,6 @@ var async = require('async')
 var tag = require('./mp3tag')
 var File = require('./file')
 
-
-
-//TODO do something with command line args...
-//console.dir(argv)
-
 var path = argv["file"]
 
 if (!path) {
@@ -73,7 +68,7 @@ tag.readHeader(path, function(err, tagData) {
         if (err) 
           throw err
 
-        file.write(pic.pictureData, function(err,res) {
+        pic.pictureData.writeInto(file, function(err,res) {
           if (err)
             throw err
           file.close()
