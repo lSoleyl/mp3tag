@@ -26,20 +26,55 @@ function Data(source, offset, size) {
   this.offset = offset || 0  
 }
 
-/** Write the data into a file at the file's current position
+/** Write the data into a file at the file's current position. If the data is
+ *  backed by a buffer, the whole buffer is simply written into the given file
+ *  (while respecting offset and size). If the data is backed by a file, the data
+ *  is copied block wise from the source file into the destination.
+ *
+ * @param writer either a File opened in write mode or a writer of type:
+ *               function(buffer, offset, length, cb(err, bytes))
+ * @param callback(err, bytes) will be called upon completion or error
+ *                 bytes = total amount of bytes written to file
  */
-Data.prototype.writeInto = function(file, callback) {
-  if (this.source instanceof Buffer) {
-    file.writeSlice(this.source, this.offset, this.size, callback)
-  } else {
-    var self = this
-    this.source.readSlice(buffer, this.offset, this.size, function(err, bytes, buffer) {
-      if (err) 
-        return callback(err)
-      if (bytes != self.size)
-        return callback(new Error("Failed to read " + self.size + " bytes, just got " + bytes))
+Data.prototype.writeInto = function(writer, callback) {
+  var write = writer
+  if (writer instanceof File)
+    write = writer.bufferWriter()
 
-      file.write(buffer, callback)
+  if (this.source instanceof Buffer) {
+    write(this.source, this.offset, this.size, callback)
+  } else { //Copy data from source to file blockwise
+    var self = this
+    var oldPos = this.source.pos //Save position
+    this.source.seek(this.offset)
+    var buffer = new Buffer(1024)
+
+    function copyBlocks(from, write, size, cb) {
+      var readSize = Math.min(buffer.length, size)
+      from.read(buffer, 0, readSize, function(err, bytes) {
+        if (err)
+          return cb(err)
+        if (bytes < readSize)
+          return cb(new Error("Failed to read " + readSize + " bytes, just got " + bytes))
+
+        write(buffer, 0, readSize, function(err, bytes) {
+          if (err)
+            return cb(err)
+          if (bytes < readSize)
+            return cb(new Error("Failed to write " + readSize + " bytes, only wrote " + bytes))
+
+          if (size - readSize == 0) {
+            return cb(null, self.size) //Success
+          } else {
+            process.nextTick(function() { copyBlocks(from, write, size-readSize, cb) })
+          }
+        })
+      })
+    }
+
+    copyBlocks(this.source, file, this.size, function(err, bytes) {
+      self.source.seek(oldPos) //Reset position
+      return callback(err, bytes)
     })
   }
 }

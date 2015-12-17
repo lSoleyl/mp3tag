@@ -49,6 +49,10 @@ File.prototype.writeSlice = function(buffer, offset, length, callback) {
   })
 }
 
+File.prototype.bufferWriter = function() {
+  return File.prototype.writeSlice.bind(this)
+}
+
 File.prototype.readSlice = function(offset, length, callback) {
   var buffer = new Buffer(length)
   fs.read(this.fd, buffer, 0, length, offset, callback)
