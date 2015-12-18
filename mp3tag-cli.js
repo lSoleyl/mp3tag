@@ -54,6 +54,8 @@ tag.readHeader(path, function(err, tagData) {
   printOut('COMM', "Comment", tag.decodeComment)
   printOut('TYER', "Year")
   printOut('TPE1', "Lead performer")
+  printOut('TPE2', "Band")
+  printOut('POPM', "Popularimeter", tag.decodePopularity)
   printOut('APIC', "Picture", function(buffer) {
     var res = tag.decodePicture(buffer)
     res.pictureData = res.pictureData.inspect()

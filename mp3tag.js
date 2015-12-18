@@ -23,6 +23,19 @@ module.exports = {
     }
   }, 
 
+  decodePopularity:function(buffer) { //v-- no unicode support for email
+    var email = decodeCString(buffer, 0x00)
+    var rating = buffer[email.pastNullPos]
+    var offset = email.pastNullPos + 1
+    var played = decodeNumberBE(buffer, offset, buffer.length - offset)
+
+    return {
+      email:email.string,
+      rating:rating,
+      playCount:played
+    }
+  },
+
 
   decodeComment:function(buffer) {
     if (!(buffer instanceof Buffer)) {
@@ -111,6 +124,16 @@ TagData.prototype.getFrameData = function(id) {
   var frames = _.filter(this.frames, function(frame) { return frame.id == id })
   return _.map(frames, function(frame) { return frame.data })
 }
+
+function decodeNumberBE(buffer, offset, bytes) {
+  var result = 0
+  for(var c = offset; c < offset + bytes; ++c) {
+    result = ((result << 8) | buffer[c]) //Decode big endian number
+  }
+  return result
+}
+
+
 
 /** Receives a zero terminated buffer to decode from and the encoding byte
  *  
@@ -239,7 +262,7 @@ function readID3v2(path, callback) {
           if (err)
             return callback(err)
 
-          frames = frames || []
+          frames = frames || []    //Filter out padding data (TODO mark it somehow and use that information)                                                         
           frames = _.filter(frames, function(frame) { return frame.data.size > 0 && frame.id !== "\0\0\0\0" })
 
           process.nextTick(function() { callback(null, 
