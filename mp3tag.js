@@ -95,6 +95,7 @@ function TagData(file, version, flags, size, frames) {
   this.flags = flags      //flags field from the header
   this.size = size        //header size with frames = starting offset of audiodata
   this.frames = frames    //list of filtered frames (no zero size frames)
+  this.audioData = new Data(file, size)
 }
 
 /** Returns an array of frame buffers, which are identified

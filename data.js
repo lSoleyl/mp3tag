@@ -21,9 +21,9 @@ function Data(source, offset, size) {
   else
     throw new Error("Source must be either a Buffer or a File")
 
-  this.size = size || dataSize
-  this.source = source
   this.offset = offset || 0  
+  this.size = size || (dataSize - this.offset)
+  this.source = source
 }
 
 /** Write the data into a file at the file's current position. If the data is

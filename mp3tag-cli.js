@@ -60,7 +60,7 @@ tag.readHeader(path, function(err, tagData) {
     return res
   })
 
-  tagData.getFrameData('APIC', function(err, frames) {
+  tagData.getFrameBuffer('APIC', function(err, frames) {
     if (frames[0]) {
       var pic = tag.decodePicture(frames[0])
       var filename = "cover." + pic.mimeType.split('/')[1]
