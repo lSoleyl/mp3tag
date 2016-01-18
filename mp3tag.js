@@ -107,7 +107,6 @@ module.exports = {
     var pictureData = descriptionBuffer.slice(descData.pastNullPos)
 
     return {
-      encoding: encodingByte,  //Integer
       mimeType: mimeType,      //String
       pictureType: pictureType,//Integer
       description: description,//String
