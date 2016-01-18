@@ -34,6 +34,22 @@ var from = {
 
   "utf-16le": function(buffer) { return buffer.toString('utf16le') },
 
+
+  "utf-16be": function(buffer) {
+    var bufferLE = new Buffer(buffer.length)
+
+    //Copy the passed buffer into bufferLE while swapping the bytes, making it a LE buffer
+    for(var c = 0; c < buffer.length; ++c) {
+      if (c % 2 == 0)
+        bufferLE[c+1] = buffer[c]
+      else
+        bufferLE[c-1] = buffer[c]
+    }
+
+    //Now we can use our LE conversion
+    return from["uft-16le"](bufferLE)
+  },
+
   "utf-8": function(buffer) { return buffer.toString('utf8') }
 }
 
