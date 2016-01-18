@@ -103,7 +103,7 @@ Data.prototype.toBuffer = function(callback) {
 }
 
 Data.prototype.toString = function() {
-  var str = "Data:[offset:" + this.offset + ",length:" + this.size + "]@"
+  var str = "Data:[offset:" + this.offset + ",size:" + this.size + "]@"
   if (this.source instanceof File) {
     return str + "File"
   } else {

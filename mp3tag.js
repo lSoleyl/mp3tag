@@ -64,7 +64,7 @@ module.exports = {
       long:longComment
     }
   },
-                           //v- TODO also decode from data
+
   decodePicture: function(buffer) {
     if (!(buffer instanceof Buffer)) {
       throw new Error("Expected buffer, got: " + typeof(buffer) + " - " + util.inspect(buffer, {showHidden:true}))
@@ -102,12 +102,13 @@ var BOMs = [
   {encoding:'UTF-8',    bom:[], dbe:false} //Empty bom sets the default codepage
 ]
 
-function TagData(file, version, flags, size, frames) {
+function TagData(file, version, flags, size, frames, padding) {
   this.file = file        //File read from
   this.version = version  //version tuple {'major','minor'}
   this.flags = flags      //flags field from the header
   this.size = size        //header size with frames = starting offset of audiodata
-  this.frames = frames    //list of filtered frames (no zero size frames)
+  this.frames = frames    //list of filtered frames (no zero size frames and no padding frames)
+  this.padding = padding  //padding bytes {'offset', 'size'}
   this.audioData = new Data(file, size)
 }
 
@@ -236,42 +237,66 @@ function readID3v2(path, callback) {
       if (err)
         return callback(err)
       if (bytesRead < 10)
-        return callback("Can't read ID3 tag header!")
+        return callback(new Error("Can't read ID3 tag header!"))
 
       var marker = header.toString('ASCII', 0, 3)
       var majorVersion = header.readUInt8(3)
       var minorVersion = header.readUInt8(4)
       var flags = header.readUInt8(5)
 
-      var headerSize = decodeUInt7Bit(header.readUInt32BE(6)) + 10
+      //Add constant header size to given header size to make it comparable with the file's offset
+      var headerSize = decodeUInt7Bit(header.readUInt32BE(6)) + 10 
 
       if (marker != "ID3") { //No header at all
-        return callback("No support for tagless files yet!")
+        return callback(new Error("No support for tagless files yet!"))
         //TODO create empty header or something like this
       } else {
         if (majorVersion != 3) //TODO implement support for other versions as well
-          return callback("Unsupported ID3 version: " + version)
+          return callback(new Error("Unsupported ID3 version: " + version))
         
 
 
         var hasExtendedHeader = (flags & 0x40) != 0
         if (hasExtendedHeader)
-          return callback("No support for extended header yet!")
+          return callback(new Error("No support for extended header yet!"))
 
         readFrames(file, headerSize, function(err, frames) {
           if (err)
             return callback(err)
 
           frames = frames || []    //Filter out padding data (TODO mark it somehow and use that information)                                                         
+          var padding = getPadding(frames, headerSize)
           frames = _.filter(frames, function(frame) { return frame.data.size > 0 && frame.id !== "\0\0\0\0" })
 
           process.nextTick(function() { callback(null, 
-            new TagData(file, {'major':majorVersion, 'minor':minorVersion}, flags, headerSize, frames))
+            new TagData(file, {'major':majorVersion, 'minor':minorVersion}, flags, headerSize, frames, padding))
           })
         })
       }
     })
   })
+}
+
+/** This function determines the padding offset and size for the given frames.
+ *
+ * @param frames the frames which were returned by getFrames
+ * @param headerSize = header size + 10
+ *
+ * @return an object {offset,size} which represents the padding.
+ *         Length will be zero if file isn't padded.
+ */
+function getPadding(frames, headerSize) {
+  for(var c = frames.length-1; c >= 0; --c) { //Search from the back (should be faster)
+    var frame = frames[c]
+
+    if (frame.id !== "\0\0\0\0") { //First non padding frame
+      var padding = { offset: frame.data.offset + frame.data.size }
+      padding.size = headerSize - padding.offset
+      return padding
+    }
+  }
+
+  return { offset:headerSize, size:0 } //Default: no padding
 }
 
 function readFrames(file, tagSize, callback) {
@@ -293,7 +318,9 @@ function readFrames(file, tagSize, callback) {
   })
 }
 
-
+/** Reads a single header frame
+ *  Format: [ID(4)] [size(4)] [flags(8)] [data(size)]
+ */
 function readFrame(file, callback) {
   var buffer = new Buffer(10)
   file.read(buffer, 0, 10, function(err, bytesRead) {
