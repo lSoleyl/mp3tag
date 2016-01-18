@@ -5,6 +5,15 @@ var async = require('async')
 var tag = require('./mp3tag')
 var File = require('./file')
 
+
+/** Command line interface to the mp3tag library
+ *  Required options: 
+ *    --file <filename>               The source file to read
+ *  
+ *  Other options:
+ *    --export-cover [destination]    Export the cover image (if any) to destination (if given, default is "./cover.[mimetype]")
+ *
+ */
 var path = argv["file"]
 
 if (!path) {
@@ -62,23 +71,41 @@ tag.readHeader(path, function(err, tagData) {
     return res
   })
 
-  tagData.getFrameBuffer('APIC', function(err, frames) {
-    if (frames[0]) {
-      var pic = tag.decodePicture(frames[0])
-      var filename = "cover." + pic.mimeType.split('/')[1]
-      File.open(filename, "w", function(err, file) {
-        if (err) 
-          throw err
 
-        pic.pictureData.writeInto(file, function(err,res) {
-          if (err)
-            throw err
-          file.close()
-          console.log("Exported cover picture to: " + filename + " (" + res + " bytes written)")
-        })
-      })
-    }
-  })
+  if (argv['export-cover']) {
+    var destination = (typeof argv['export-cover'] == "string") ? argv['export-cover'] : undefined
+    exportCover(tagData, destination, function(err) { if (err) console.error("Cover export failed: " + err) })
+  }
 
 })
 
+/** This function is used to export the cover picture from the mp3 file.
+ *  
+ * @param tagData the TagData object which contains the picture
+ * @param destination a filepath or undefined, if default filepath should be used
+ * @param callback(err,res) will be called upon error or completion.
+ *                          res will be the number of bytes, written into the file.
+ */
+function exportCover(tagData, destination, callback) {
+  tagData.getFrameBuffer('APIC', function(err, frames) {
+    if (frames[0]) {
+      var pic = tag.decodePicture(frames[0])
+      var filename = destination || ("cover." + pic.mimeType.split('/')[1])
+      File.open(filename, "w", function(err, file) {
+        if (err) 
+          return callback(err)
+
+        pic.pictureData.writeInto(file, function(err,res) {
+          if (err)
+            return callback(err)
+
+          file.close()
+          console.log("Exported cover picture to: " + filename + " (" + res + " bytes written)")
+          process.nextTick(function() { callback(null, res) })
+        })
+      })
+    } else {
+      return callback("File has no picture frame")
+    }
+  })
+}
