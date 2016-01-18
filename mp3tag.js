@@ -1,14 +1,26 @@
+//Node dependencies
 var fs = require('fs')
-var File = require('./file')
-var Data = require('./data')
-var cp = require('./cp')
+var util = require('util')
 
+//External dependencies
 var async = require('async')
 var _ = require('lodash')
-var util = require('util')
+
+//Utilities
+var cp = require('./cp')
+
+//Classes
+var File = require('./file')
+var Data = require('./data')
+var TagData = require('./tagdata')
+
 
 module.exports = {
   readHeader: function(path,callback) { return readID3v2(path,callback) },
+
+  /** Returns an empty mp3 tag header
+   */
+  newHeader: function() { return TagData.empty() },
 
   decodeString: function(buffer) {
     if (!(buffer instanceof Buffer)) {
@@ -101,30 +113,6 @@ var BOMs = [
   {encoding:'UTF-8',    bom:[0xEF, 0xBB, 0xBF], dbe:false},
   {encoding:'UTF-8',    bom:[], dbe:false} //Empty bom sets the default codepage
 ]
-
-function TagData(file, version, flags, size, frames, padding) {
-  this.file = file        //File read from
-  this.version = version  //version tuple {'major','minor'}
-  this.flags = flags      //flags field from the header
-  this.size = size        //header size with frames = starting offset of audiodata
-  this.frames = frames    //list of filtered frames (no zero size frames and no padding frames)
-  this.padding = padding  //padding bytes {'offset', 'size'}
-  this.audioData = new Data(file, size)
-}
-
-/** Returns an array of frame buffers, which are identified
- *  by the given id
- */
-TagData.prototype.getFrameBuffer = function(id, callback) {
-  var frames = _.filter(this.frames, function(frame) { return frame.id == id })
-
-  async.map(frames, function(frame, cb) { frame.data.toBuffer(cb) }, callback)
-}
-
-TagData.prototype.getFrameData = function(id) {
-  var frames = _.filter(this.frames, function(frame) { return frame.id == id })
-  return _.map(frames, function(frame) { return frame.data })
-}
 
 function decodeNumberBE(buffer, offset, bytes) {
   var result = 0

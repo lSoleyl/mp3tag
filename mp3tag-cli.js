@@ -8,7 +8,7 @@ var File = require('./file')
 
 /** Command line interface to the mp3tag library
  *  Required options: 
- *    --file <filename>               The source file to read
+ *    --file <filename>               The source file to read if empty, then an empty header will be generated
  *  
  *  Other options:
  *    --export-cover [destination]    Export the cover image (if any) to destination (if given, default is "./cover.[mimetype]")
@@ -46,7 +46,7 @@ function debug(err, result) {
   return console.dir(result)
 }
 
-tag.readHeader(path, function(err, tagData) { 
+getHeader(path, function(err, tagData) {
   if (err)
     return console.error("Error: " + err)
 
@@ -78,6 +78,21 @@ tag.readHeader(path, function(err, tagData) {
   }
 
 })
+
+/** This function returns an mp3tag header based on the source.
+ *  If the passed source is not a string, then an empty header will be returned.
+ *
+ * @param source the mp3 file to read the header from
+ * @param callback(err,tagData) the callback which will be called upon completion
+ */
+function getHeader(source, callback) {
+  if (typeof source == "string") {
+    tag.readHeader(path, callback)
+  } else {
+    process.nextTick(function() { callback(null, tag.newHeader()) })
+  }
+}
+
 
 /** This function is used to export the cover picture from the mp3 file.
  *  
