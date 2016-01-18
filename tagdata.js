@@ -38,6 +38,34 @@ TagData.prototype.getFrameData = function(id) {
   return _.map(frames, function(frame) { return frame.data })
 }
 
+/** This method will just write back the updated frame data into the file itself.
+ *  If possible ut will try to use the padding area for that purpose. If the updated
+ *  header fits inside the old header+padding then only the header part of the file will
+ *  get updated and not the whole file.
+ *
+ * @param callback(err,res) will be called upon completion
+ */
+TagData.prototype.save = function(callback) {
+  if (!this.file) 
+    return callback(new Error("This tag data has no source file!"))
+
+  var availableSpace = this.padding.offset + this.padding.size
+
+  //TODO implement this
+  throw new Error("Not implemented yet!")
+}
+
+/** This method will write the content into a file (overwriting existing files) and 
+ *  will place a padding area of 1024 bytes after the header.
+ *
+ * @param file the file to write into
+ * @param callback(err, res) will be called upon completion
+ */
+TagData.prototype.writeToFile = function(file, callback) {
+  //TODO implement write to file
+  throw new Error("Not implemented yet!")
+}
+
 
 
 //export class

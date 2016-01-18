@@ -1,4 +1,7 @@
-/** Codepage conversion module
+/** Codepage conversion module.
+ *  decodes strings from buffers, and encodes strings into buffers.
+ *  
+ *  BOMs are not generated...
  */
 var _ = require('lodash')
 
@@ -55,5 +58,5 @@ var from = {
 
 
 var to = {
-
+  "utf-16le": function(string) { return new Buffer(string, 'utf16le') }
 }

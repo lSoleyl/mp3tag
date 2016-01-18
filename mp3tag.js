@@ -35,6 +35,19 @@ module.exports = {
     }
   }, 
 
+
+  encodeString: function(string) {
+    if (!(typeof string == "string"))
+      throw new Error("Expected string, got: " + typeof(string) + " - " + util.inspect(string, {showHidden:true}))
+
+    var bomBuf = encodeString(string, "UTF-16LE")
+
+    var result = new Buffer(bomBuf.length+1)
+    result[0] = 0x01 //encoding byte = unicode
+    bomBuf.copy(result,1)
+    return result
+  },
+
   decodePopularity:function(buffer) { //v-- no unicode support for email
     var email = decodeCString(buffer, 0x00)
     var rating = buffer[email.pastNullPos]
@@ -101,11 +114,7 @@ module.exports = {
       pictureData: new Data(pictureData) //BufferData
     }
   }
-
-
-  //TODO export functions
 }
-
 
 var BOMs = [
   {encoding:'UTF-16LE', bom:[0xFF, 0xFE], dbe:true},
@@ -159,6 +168,26 @@ function decodeCString(buffer, encodingByte) {
 function decodeString(buffer, encodingByte) {
   var encoding = getBufferEncoding(buffer, encodingByte)
   return cp.fromBuffer(buffer.slice(encoding.bom.length), encoding.encoding)
+}
+
+/** Encodes the string into a buffer with the encoding's BOM.
+ *  The encodingByte won't be written into the buffer as this is format specific.
+ *  
+ * @param string the string to encode
+ * @param encoding the name of the encoding to use
+ *
+ * @return the buffer with the encoded string
+ */
+function encodeString(string, encoding) {
+  var cp = _.find(BOMs, function(bom) { return bom.encoding.toLowerCase() == encoding.toLowerCase() })
+  var strBuffer = cp.fromString(string, cp.encoding)
+  var result = new Buffer(strBuffer.length+cp.bom.length)
+
+  for(var c = 0; c < cp.bom.length; ++c)
+    result[c] = cp.bom[c]
+
+  strBuffer.copy(result, cp.bom.length)
+  return result
 }
 
 /** Returns the offset of the NULL (double-)byte inside a string buffer
