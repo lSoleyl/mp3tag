@@ -53,9 +53,28 @@ File.prototype.bufferWriter = function() {
   return File.prototype.writeSlice.bind(this)
 }
 
+
+/** This function accepts an file offset and a length and
+ *  reads out the data as buffer.
+ *
+ * @param offset the offset to start reading
+ * @param length the length of the data to read
+ * @param callback(err,buff) the callback to receive the result.
+ *          reading less then length bytes is also treated as error.
+ */
 File.prototype.readSlice = function(offset, length, callback) {
   var buffer = new Buffer(length)
-  fs.read(this.fd, buffer, 0, length, offset, callback)
+  if (length == 0)
+    return process.nextTick(function() { callback(null, buffer) })
+
+  fs.read(this.fd, buffer, 0, length, offset, function(err,bytes,buffer) {
+    if (err)
+      return callback(err);
+    if (bytes != length)  //TODO create a type for this kind of error to handle it programatically
+      return callback(new Error("File end reached. Only " + bytes + " were read instead of " + length))
+
+    callback(null, buffer)
+  })
 }
 
 /** Sets the file position further by the specified amount of bytes, relative to

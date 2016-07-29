@@ -21,24 +21,6 @@ if (!path) {
   return
 }
 
-function print(str, decodefn) {
-  var decfn = decodefn || tag.decodeString
-  return function(err, res) {
-    if (err) 
-      return console.error("error: " + err)
-
-    var data = _.map(res, function(buffer) {
-      var result = decfn(buffer)
-      if (typeof result !== 'string')
-        result = JSON.stringify(result, null, 2)
-
-      return result
-    }).join(';')
-
-    console.log(str + data)
-  }
-}
-
 function debug(err, result) {
   if (err)
     return console.error("error: " + err)
@@ -54,7 +36,15 @@ getHeader(path, function(err, tagData) {
   console.log("\n")
 
   function printOut(id, asName, decodefn) {
-    tagData.getFrameBuffer(id, print(asName + ": ", decodefn))
+    var decfn = decodefn || tag.decodeString
+    var data = _.map(tagData.getFrameBuffer(id), function(buffer) {
+      var result = decfn(buffer)  
+      if (typeof result !== 'string')
+        result = JSON.stringify(result, null, 2)
+      return result
+    }).join(';')
+    
+    console.log(asName + ": " + data)
   }
 
   printOut('TIT2', "Title")
@@ -102,6 +92,7 @@ function getHeader(source, callback) {
  *                          res will be the number of bytes, written into the file.
  */
 function exportCover(tagData, destination, callback) {
+  //FIXME the export cover function is currently not working due to the latest refactoring.
   tagData.getFrameBuffer('APIC', function(err, frames) {
     if (frames[0]) {
       var pic = tag.decodePicture(frames[0])

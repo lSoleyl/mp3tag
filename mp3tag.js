@@ -350,12 +350,24 @@ function readFrame(file, callback) {
     var flags = buffer.readUInt16BE(8)
     var pos = file.pos
 
+    //Padding frames have no size, they are just empty frames (the last padding byte had the size FFFBE444)
+    if (id == "\0\0\0\0") { 
+      size = 0
+      flags = 0
+    }
+
     file.seek(size)
 
-    process.nextTick(function() { callback(null, { 
-      id:id,           //Four character frame id
-      data: new Data(file, pos, size), //Frame content reference
-      flags:flags      //Frame header flags
-    })})
+    //Read the whole frame into a buffer
+    file.readSlice(pos, size, function(err, frameBuffer) {
+      if (err)
+        return callback(err)
+
+      callback(null, {
+        id:id,
+        data: new Data(frameBuffer, 0, size),
+        flags:flags
+      })
+    })
   })
 }
