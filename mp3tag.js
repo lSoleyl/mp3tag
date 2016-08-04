@@ -281,8 +281,8 @@ function readID3v2(path, callback) {
             return callback(err)
 
           frames = frames || []    //Filter out padding data (TODO mark it somehow and use that information)                                                         
-          var padding = getPadding(frames, headerSize)
-          frames = _.filter(frames, function(frame) { return frame.data.size > 0 && frame.id !== "\0\0\0\0" })
+          var padding = getPadding(frames, headerSize)         //Filter out padding
+          frames = _.filter(frames, function(frame) { return !frame.padding })
 
           process.nextTick(function() { callback(null, 
             new TagData(file, {'major':majorVersion, 'minor':minorVersion}, flags, headerSize, frames, padding))
@@ -295,31 +295,32 @@ function readID3v2(path, callback) {
 
 /** This function determines the padding offset and size for the given frames.
  *
- * @param frames the frames which were returned by getFrames
- * @param headerSize = header size + 10
+ * @param frames the frames which were returned by getFrames (ordered in that way)
  *
  * @return an object {offset,size} which represents the padding.
  *         Length will be zero if file isn't padded.
  */
-function getPadding(frames, headerSize) {
-  for(var c = frames.length-1; c >= 0; --c) { //Search from the back (should be faster)
-    var frame = frames[c]
-
-    if (frame.id !== "\0\0\0\0") { //First non padding frame
-      var padding = { offset: frame.data.offset + frame.data.size }
-      padding.size = headerSize - padding.offset
-      return padding
+function getPadding(frames) {
+  var frame = frames[frames.length-1] //Last frame is the padding frame (if any)
+  
+  if (frame.padding) { //Is this actually a padding frame?
+    return {
+      offset:frame.pos,
+      size:frame.size
+    }
+  } else {
+    return {
+      offset:frame.pos + frame.size, //Padding starts after last frame
+      size: 0                        //and has a size of 0
     }
   }
-
-  return { offset:headerSize, size:0 } //Default: no padding
 }
 
 function readFrames(file, tagSize, callback) {
   var frames = []
                 //v-- like compose, but correct order
   var fn = async.seq(
-    async.apply(readFrame, file), 
+    async.apply(readFrame, file, tagSize), 
     function(frame, cb) { 
       frames.push(frame) 
       return cb(null, frame)
@@ -336,38 +337,79 @@ function readFrames(file, tagSize, callback) {
 
 /** Reads a single header frame
  *  Format: [ID(4)] [size(4)] [flags(8)] [data(size)]
+ *  If the function encounters a NULL byte at the current position, it assumes, it has hit
+ *  the padding start. It will move the file's position to one byte after the padding ends, 
+ *  this is determined by `mediaStart` and return one frame, which has the field `padding` set to true.
+ *  The padding frame's size equals the exact size of the padding in bytes.
+ *
+ *  frame structure looks as follows:
+ *  {
+ *    id      - the frames id as string
+ *    pos     - the file position at which this frame's data starts
+ *    size    - the size of this frame's data
+ *    flags   - the decoded frame flags
+ *    padding - set to true if this frame represents padding
+ *  }
+ *
+ * @param file the file object to read from at the current position
+ * @param mediaStart the offset at which the audio starts (=tagSize from the tag header)
+ * @param callback(err,frame) will be called if frame has been read
  */
-function readFrame(file, callback) {
+function readFrame(file, mediaStart, callback) {
   var buffer = new Buffer(10)
-  file.read(buffer, 0, 10, function(err, bytesRead) {
+  file.read(buffer, 0, 1, function(err, byteRead) { //Read first byte to check for padding
     if (err)
       return process.nextTick(function() { callback(err) })
-    if (bytesRead < 10)
-      return process.nextTick(function() { callback("Can't read ID3 frame header!") })
+    if (byteRead != 1)
+      return process.nextTick(function() { callback("Can't read initial byte of frame header") })
 
-    var id = buffer.toString('ASCII', 0, 4)
-    var size = buffer.readUInt32BE(4)
-    var flags = buffer.readUInt16BE(8)
-    var pos = file.pos
+    if (buffer[0] == 0) { //Encountered NULL-Byte (padding starts here)
+      file.seek(-1, 'curent')
+      var offset = file.pos
+      var paddingSize = mediaStart - file.pos
+      file.seek(mediaStart, 'start') //Move file pos to where audio starts
 
-    //Padding frames have no size, they are just empty frames (the last padding byte had the size FFFBE444)
-    if (id == "\0\0\0\0") { 
-      size = 0
-      flags = 0
-    }
-
-    file.seek(size)
-
-    //Read the whole frame into a buffer
-    file.readSlice(pos, size, function(err, frameBuffer) {
-      if (err)
-        return callback(err)
-
-      callback(null, {
-        id:id,
-        data: new Data(frameBuffer, 0, size),
-        flags:flags
+      process.nextTick(function() { //Return padding frame
+        callback(null, {
+          id:"\0\0\0\0", //Padding has no id
+          pos:offset,
+          size:paddingSize,
+          flags:0,
+          padding:true
+        })
       })
-    })
+    } else {
+      //Now that we know, that we don't have padding, we can read in the remaining frame header
+      file.read(buffer, 1, 9, function(err, bytesRead) {
+        if (err)
+          return process.nextTick(function() { callback(err) })
+        if (bytesRead < 9)
+          return process.nextTick(function() { callback("Can't read ID3 frame header!") })
+
+        var id = buffer.toString('ASCII', 0, 4)
+        var size = buffer.readUInt32BE(4)
+        var flags = buffer.readUInt16BE(8)
+        var pos = file.pos
+
+
+        file.seek(size)
+
+        //Read the whole frame into a buffer
+        file.readSlice(pos, size, function(err, frameBuffer) {
+          if (err)
+            return callback(err)
+
+          callback(null, {
+            id:id,
+            pos:pos,
+            size:size,
+            data: new Data(frameBuffer, 0, size),
+            flags:flags
+          })
+        })
+      })
+
+
+    }
   })
 }
