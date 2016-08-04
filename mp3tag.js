@@ -248,11 +248,11 @@ function readID3v2(path, callback) {
     if (err)
       return callback(err)
 
-    var header = new Buffer(10)
-    file.read(header, 0, 10, function(err, bytesRead) { //Read 10 Byte header
+    var header = new Buffer(TagData.tagHeaderSize)
+    file.read(header, 0, header.length, function(err, bytesRead) { //Read 10 Byte header
       if (err)
         return callback(err)
-      if (bytesRead < 10)
+      if (bytesRead < header.length)
         return callback(new Error("Can't read ID3 tag header!"))
 
       var marker = header.toString('ASCII', 0, 3)
@@ -261,7 +261,7 @@ function readID3v2(path, callback) {
       var flags = header.readUInt8(5)
 
       //Add constant header size to given header size to make it comparable with the file's offset
-      var headerSize = decodeUInt7Bit(header.readUInt32BE(6)) + 10 
+      var headerSize = decodeUInt7Bit(header.readUInt32BE(6)) + TagData.tagHeaderSize 
 
       if (marker != "ID3") { //No header at all
         return callback(new Error("No support for tagless files yet!"))
@@ -336,7 +336,7 @@ function readFrames(file, tagSize, callback) {
 }
 
 /** Reads a single header frame
- *  Format: [ID(4)] [size(4)] [flags(8)] [data(size)]
+ *  Format: [ID(4)] [size(4)] [flags(2)] [data(size)]
  *  If the function encounters a NULL byte at the current position, it assumes, it has hit
  *  the padding start. It will move the file's position to one byte after the padding ends, 
  *  this is determined by `mediaStart` and return one frame, which has the field `padding` set to true.
@@ -356,7 +356,7 @@ function readFrames(file, tagSize, callback) {
  * @param callback(err,frame) will be called if frame has been read
  */
 function readFrame(file, mediaStart, callback) {
-  var buffer = new Buffer(10)
+  var buffer = new Buffer(TagData.frameHeaderSize)
   file.read(buffer, 0, 1, function(err, byteRead) { //Read first byte to check for padding
     if (err)
       return process.nextTick(function() { callback(err) })
@@ -380,10 +380,10 @@ function readFrame(file, mediaStart, callback) {
       })
     } else {
       //Now that we know, that we don't have padding, we can read in the remaining frame header
-      file.read(buffer, 1, 9, function(err, bytesRead) {
+      file.read(buffer, 1, buffer.length-1, function(err, bytesRead) {
         if (err)
           return process.nextTick(function() { callback(err) })
-        if (bytesRead < 9)
+        if (bytesRead < buffer.length-1)
           return process.nextTick(function() { callback("Can't read ID3 frame header!") })
 
         var id = buffer.toString('ASCII', 0, 4)

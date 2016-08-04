@@ -37,14 +37,14 @@ getHeader(path, function(err, tagData) {
 
   function printOut(id, asName, decodefn) {
     var decfn = decodefn || tag.decodeString
-    var data = _.map(tagData.getFrameBuffer(id), function(buffer) {
-      var result = decfn(buffer)  
-      if (typeof result !== 'string')
-        result = JSON.stringify(result, null, 2)
-      return result
-    }).join(';')
+    var buffer = tagData.getFrameBuffer(id)
+
+    var result = buffer ? decfn(tagData.getFrameBuffer(id)) : ""
+    if (typeof result !== 'string')
+      result = JSON.stringify(result, null, 2)
     
-    console.log(asName + ": " + data)
+    
+    console.log(asName + ": " + result)
   }
 
   printOut('TIT2', "Title")

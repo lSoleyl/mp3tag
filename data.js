@@ -13,10 +13,8 @@ function Data(source, offset, size) {
   var dataSize
   if (source instanceof Buffer)
     dataSize = source.length
-  else if(source instanceof File)
-    throw new Error("Source must not be a File")
   else
-    throw new Error("Source must be either a Buffer or a File")
+    throw new Error("Source must be either a Buffer")
 
   this.offset = offset || 0  
   this.size = size || (dataSize - this.offset)
