@@ -1,14 +1,14 @@
 /** Test for encoding functions
  */
 
-var mp3tag = require('../mp3tag')
+var encoding = require('../encoding')
 var should = require('chai').should()
 
 
 
 describe("7BitUInt", function() {
-  var decode = mp3tag.utils.decodeUInt7Bit
-  var encode = mp3tag.utils.encodeUInt7Bit
+  var decode = encoding.decodeUInt7Bit
+  var encode = encoding.encodeUInt7Bit
 
   describe('decoding', function() {
     it("should return 0 for 0", function() {

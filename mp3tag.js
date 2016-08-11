@@ -8,6 +8,7 @@ var _ = require('lodash')
 
 //Utilities
 var cp = require('./cp')
+var encoding = require('./encoding')
 
 //Classes
 var File = require('./file')
@@ -15,7 +16,7 @@ var Data = require('./data')
 var TagData = require('./tagdata')
 
 
-var mp3Tag = {
+module.exports = {
   readHeader: function(path,callback) { return readID3v2(path,callback) },
 
   /** Returns an empty mp3 tag header
@@ -112,36 +113,8 @@ var mp3Tag = {
       description: description,//String
       pictureData: new Data(pictureData) //BufferData
     }
-  },
-
-  utils: {
-    /** Decodes a 7bit encoded unsigned integer:
-     *  Format: 0b0xxxxxx0xxxxxx0xxxxxx0xxxxxx
-     *
-     * @param uint28 the number to decode
-     *
-     * @return the decoded number
-     */
-    decodeUInt7Bit: function(uint28) {
-      var x = uint28
-      return (x & 0x7F) | ((x & 0x7F00) >> 1) | ((x & 0x7F0000) >> 2) | ((x & 0x7F000000) >> 3)
-    },
-
-    /** Encodes a unsigned integer into a  7bit unsigned integer. 
-     *  The first 4 bits get cut off. 
-     *
-     * @param uint32 the integer to encode
-     *
-     * @return a 28 bit encoded integer
-     */
-    encodeUInt7Bit: function(uint32) {
-      var x = uint32
-      return (x & 0x7F) | (((x >> 7) & 0x7F) << 8) | (((x >> 14) & 0x7F) << 16) | (((x >> 21) & 0x7F) << 24)
-    }
   }
 }
-
-module.exports = mp3Tag
 
 var BOMs = [
   {encoding:'UTF-16LE', bom:[0xFF, 0xFE], dbe:true},
@@ -281,7 +254,7 @@ flags
       var flags = header.readUInt8(5)
 
       //Add constant header size to given header size to make it comparable with the file's offset
-      var headerSize = mp3Tag.utils.decodeUInt7Bit(header.readUInt32BE(6)) + TagData.tagHeaderSize 
+      var headerSize = encoding.decodeUInt7Bit(header.readUInt32BE(6)) + TagData.tagHeaderSize 
 
       if (marker != "ID3") { //No header at all
         return callback(new Error("No support for tagless files yet!"))
