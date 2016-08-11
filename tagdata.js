@@ -8,6 +8,8 @@
 var async = require("async")
 var _ = require("lodash")
 
+var encoding = require('./encoding')
+
 var Data = require('./data')
 var DataSource = require('./dataSource')
 
@@ -173,7 +175,7 @@ TagData.prototype.getFrameData = function(id) {
 
 
 /** This method will just write back the updated frame data into the file itself.
- *  If possible ut will try to use the padding area for that purpose. If the updated
+ *  If possible it will try to use the padding area for that purpose. If the updated
  *  header fits inside the old header+padding then only the header part of the file will
  *  get updated and not the whole file.
  *
@@ -181,21 +183,68 @@ TagData.prototype.getFrameData = function(id) {
  */
 TagData.prototype.save = function(callback) {
   if (!this.file) 
-    return callback(new Error("This tag data has no source file!"))
+    return callback(new Error("This tag data has no source file!")) //Is true for generated headers
 
-  var availableSpace = this.padding.offset + this.padding.size
+  this.writeToFile(this.file.name, callback)
+}
 
-  //TODO implement this
-  throw new Error("Not implemented yet!")
+/** This method will write the id3 tag header into the given file. At the correct offset.
+ *
+ * @param file a File object
+ * @param callback(err) the callback, which holds the error, if any.
+ */
+TagData.prototype.writeTagHeader = function(file, callback) {
+  var header = new Buffer(TagData.tagHeaderSize)
+
+  header.asciiWrite("ID3") //Write marker
+  header.writeUInt8(this.version.major,3)
+  header.writeUInt8(this.version.minor,4)
+  header.writeUInt8(this.flags, 5)
+
+  //TagHeader size must be subtracted from the actual size
+  header.writeUInt32BE(encoding.encodeUInt7Bit(this.size - TagData.tagHeaderSize), 6)
+
+  //TODO write the buffer into the file
+  process.nextTick(function() { return callback(new Error("Not implemented yet")) })
+
 }
 
 /** This method will write the content into a file (overwriting existing files) and 
- *  will place a padding area of 1024 bytes after the header.
+ *  will place a padding area of 1024 bytes after the header. If the file to write into
+ *  equals the source file for this tag's audiodata, then it tries to only update the tags itself.
+ *  If a new file is written, a default padding of 1024 is added.
  *
- * @param file the file to write into
+ *  If the destination file is a .mp3 file, it will get completely overwritten.
+ *  It won't be first parsed to preserve it's audio data.
+ * 
+ * @param path the file's path to write into
  * @param callback(err, res) will be called upon completion
  */
-TagData.prototype.writeToFile = function(file, callback) {
+TagData.prototype.writeToFile = function(path, callback) {
+  //FIXME: this is more a pseudo code than acutal code... refactor it
+  var self = this
+  var sameFile = (self.audioData.source.name === path)
+  if (sameFile && self.rewrite) {
+    //We have to load the audioData into a buffer, before writing, or else we will overwrite it.
+  } 
+
+  //TODO clean this mess a bit up, using async...
+
+  //Open target file for writing
+  File.open(path, "w", function(err, file) {
+    if (err)
+      callback(err)
+
+    self.writeTagHeader(file, function(err) {
+      //TODO write frames
+      //TODO write padding
+      if (!sameFile || self.rewrite) {
+        //TODO we have to write the audiodata
+      }
+      file.close()
+    })
+  })
+
   //TODO implement write to file
   throw new Error("Not implemented yet!")
 }
