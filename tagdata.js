@@ -189,6 +189,7 @@ TagData.prototype.save = function(callback) {
 }
 
 /** This method will write the id3 tag header into the given file. At the correct offset.
+ *  This will not write the frames.
  *
  * @param file a File object
  * @param callback(err) the callback, which holds the error, if any.
@@ -204,9 +205,8 @@ TagData.prototype.writeTagHeader = function(file, callback) {
   //TagHeader size must be subtracted from the actual size
   header.writeUInt32BE(encoding.encodeUInt7Bit(this.size - TagData.tagHeaderSize), 6)
 
-  //TODO write the buffer into the file
-  process.nextTick(function() { return callback(new Error("Not implemented yet")) })
-
+  //Now write the header
+  file.write(header, callback)
 }
 
 /** This method will write the content into a file (overwriting existing files) and 
@@ -231,17 +231,33 @@ TagData.prototype.writeToFile = function(path, callback) {
   //TODO clean this mess a bit up, using async...
 
   //Open target file for writing
-  File.open(path, "w", function(err, file) {
+
+  var fmode = "w"
+  if (sameFile && !self.rewrite) {
+    fmode = "a" //Don't clear file on open
+  }
+
+
+  File.open(path, fmode, function(err, file) {
     if (err)
-      callback(err)
+      return callback(err)
 
     self.writeTagHeader(file, function(err) {
-      //TODO write frames
-      //TODO write padding
-      if (!sameFile || self.rewrite) {
-        //TODO we have to write the audiodata
-      }
-      file.close()
+      if (err)
+        return callback(err)
+
+      //Write frames
+      async.eachSeries(self.frames, (frame, cb) => { file.write(frame.data.toBuffer(), cb) }, (err) => {
+        if (err)
+          return callback(err)
+
+
+        //TODO write padding
+        if (!sameFile || self.rewrite) {
+          //TODO we have to write the audiodata
+        }
+        file.close()
+      })
     })
   })
 
