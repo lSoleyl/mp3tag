@@ -8,6 +8,9 @@ function File(fd, name, size) {
 }
 
 File.open = function(path, mode, callback) {
+  if (mode == "a")
+    mode = "r+" //<- Portable way of making positional writes to existing file
+
   fs.open(path, mode, function(err, fd) {
     if (err)
       return callback(err)
@@ -24,12 +27,12 @@ File.open = function(path, mode, callback) {
 module.exports = File
 
 File.prototype.read = function(buffer, offset, length, callback) {
-  var file = this
-  fs.read(this.fd, buffer, offset, length, this.pos, function(err, bytesRead, buffer) {
+  var self = this
+  fs.read(self.fd, buffer, offset, length, self.pos, function(err, bytesRead, buffer) {
     if (err)
       return callback(err)
 
-    file.pos += bytesRead
+    self.pos += bytesRead
     callback(err, bytesRead, buffer)
   })
 }
@@ -39,11 +42,12 @@ File.prototype.write = function(buffer, callback) {
 }
 
 File.prototype.writeSlice = function(buffer, offset, length, callback) {
-  fs.write(this.fd, buffer, offset, length, null, function(err, bytes, buffer) {
+  var self = this
+  fs.write(self.fd, buffer, offset, length, self.pos, function(err, bytes, buffer) {
     if(err)
       return callback(err)
 
-    this.pos += bytes
+    self.pos += bytes
 
     process.nextTick(function() { callback(null, bytes, buffer) })
   })

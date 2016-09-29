@@ -6,11 +6,16 @@ var should = require('chai').should()
 
 
 describe('File', function() {
-  //TODO prepare tests by deleting temporary files
+  var path = '/tmp/writeTest'
+
+  beforeEach(function() {
+    if (fs.existsSync(path))
+      fs.unlinkSync(path)
+  })
+
   //TODO determine temp directory based on running operating system /tmp vs %TEMP%
 
   describe('openFile(w)', function() {
-    var path = "/tmp/writeTest"
     it('should create a new file if it doesn\'t exist', function(done) {
       File.open(path, "w", function(err, file) {
         if (err)
@@ -23,8 +28,48 @@ describe('File', function() {
     })
   })
 
+  describe('openFile(a)', function() {
+    var content = "Test content"
+
+    it('should not clear the file on open', function(done) {
+      //Create file with content in it
+      fs.writeFileSync(path, content)
+
+      File.open(path, "a", function(err, file) {
+        if (err)
+          return done(err)
+
+        file.close()
+        fs.readFileSync(path).toString().should.equal(content)
+        done() 
+      })
+    })
+
+    it('should start writing at the beginning of the file', function(done) {
+      var append = "xxxx"
+      var result = "xxxx content"
+
+      //Create file with content in it
+      fs.writeFileSync(path, content)
+
+      File.open(path, "a", function(err, file) {
+        if (err)
+          return done(err)
+
+        file.write(new Buffer(append), function(err) {
+          if (err)
+            return done(err)
+
+          file.close()
+
+          fs.readFileSync(path).toString().should.equal(result)
+          done()
+        })
+      })
+    })
+  })
+
   describe('writeFile', function() {
-    var path = "/tmp/writeTest2"
     var content = "Hello Buffers!"
 
     it("should start writing at the file's beginning", function(done) {
@@ -33,7 +78,7 @@ describe('File', function() {
           return done(err)
 
 
-        var buf = new Buffer(content, "utf8")
+        var buf = new Buffer(content)
 
         file.write(buf, function(err, bytes) {
           if (err)
@@ -48,7 +93,6 @@ describe('File', function() {
     })
 
     it("should continue writing where it left off, when writing multiple times", function(done) {
-      var path = "/tmp/writeTest3"
       var content = [ "This is the first part\n", "This is the last part" ] 
 
       File.open(path, "w", function(err, file) {
@@ -56,12 +100,12 @@ describe('File', function() {
           return done(err)
 
 
-        var buffer = new Buffer(content[0], "utf8")
+        var buffer = new Buffer(content[0])
         file.write(buffer, function(err) {
           if (err)
             return done(err)
 
-          buffer = new Buffer(content[1], "utf8")
+          buffer = new Buffer(content[1])
           file.write(buffer, function(err) {
             if (err)
               return done(err)
