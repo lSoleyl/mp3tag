@@ -5,33 +5,68 @@ var async = require('async')
 var tag = require('./mp3tag')
 var File = require('./file')
 
+var out = require('./output')
+
 
 /** Command line interface to the mp3tag library
- *  Required options: 
- *    --file <filename>               The source file to read if empty, then an empty header will be generated
+ *  Primary options: 
+ *    --in <filename>              The source file to read. If not set, an empty file will be genrated.
+ *
+ *    --write [filename]           Specified that the changes, made to the tags should be written into filename. If filename is left out, the input file is used.
  *  
  *  Other options:
- *    --export-cover [destination]    Export the cover image (if any) to destination (if given, default is "./cover.[mimetype]")
- *
+ *    --export-cover [destination]   Export the cover image (if any) to destination (if given, default is "./cover.[mimetype]")
+ *    --v                           Output debug info
+ *    --show-data                   Prints out the contained tag data
  */
-var path = argv["file"]
+var source = (argv["in"] && typeof argv["in"] == "string") ? argv["in"] : undefined 
+var write  = argv["write"]
 
-if (!path) {
-  console.error("Please provide an input file with --file")
-  return
+//Define debug output
+if (argv["v"])
+  out.config().debug = true
+
+if (write && typeof write != "string") { //only write specified
+  write = source
+  if (!write) {
+    out.error("Missing filename for --in parameter, or --write parameter")
+    process.exit(1)
+  }
 }
+
 
 function debug(err, result) {
   if (err)
-    return console.error("error: " + err)
+    return out.error(err)
 
   return console.dir(result)
 }
 
-getHeader(path, function(err, tagData) {
+getHeader(source, function(err, tagData) {
   if (err)
-    return console.error("Error: " + err)
+    return out.error(err)
 
+
+  if (argv["show-data"]) {
+    showData(tagData)
+  }
+
+
+  if (argv['export-cover']) {
+    var destination = (typeof argv['export-cover'] == "string") ? argv['export-cover'] : undefined
+    exportCover(tagData, destination, function(err, res) { 
+      if (err) 
+        return out.error("Cover export failed: " + err)
+
+      out.info("Exported cover picture to: " + res.filename + " (" + res.bytes + " bytes written)")
+    })
+  }
+
+})
+
+/** Simply prints all known data about the audio
+ */
+function showData(tagData) {
   console.dir(tagData)
   console.log("\n")
 
@@ -61,18 +96,7 @@ getHeader(path, function(err, tagData) {
     return res
   })
 
-
-  if (argv['export-cover']) {
-    var destination = (typeof argv['export-cover'] == "string") ? argv['export-cover'] : undefined
-    exportCover(tagData, destination, function(err, res) { 
-      if (err) 
-        return console.error("Cover export failed: " + err)
-
-      console.log("Exported cover picture to: " + res.filename + " (" + res.bytes + " bytes written)")
-    })
-  }
-
-})
+}
 
 /** This function returns an mp3tag header based on the source.
  *  If the passed source is not a string, then an empty header will be returned.
@@ -82,8 +106,10 @@ getHeader(path, function(err, tagData) {
  */
 function getHeader(source, callback) {
   if (typeof source == "string") {
-    tag.readHeader(path, callback)
+    out.debug("Loading audio file form '" + source + "'")
+    tag.readHeader(source, callback)
   } else {
+    out.debug("No source passed, generating empty audio file")
     process.nextTick(function() { callback(null, tag.newHeader()) })
   }
 }

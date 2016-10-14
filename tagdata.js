@@ -224,45 +224,72 @@ TagData.prototype.writeToFile = function(path, callback) {
   //FIXME: this is more a pseudo code than acutal code... refactor it
   var self = this
   var sameFile = (self.audioData.source.name === path)
-  if (sameFile && self.rewrite) {
-    //We have to load the audioData into a buffer, before writing, or else we will overwrite it.
-  } 
 
-  //TODO clean this mess a bit up, using async...
+  //This function will retrive the audioFN and call the provided callback with it
+  //AudioFN is a nop if no audio write is necessary
+  function withAudioFN(cb) {
+    if (sameFile && self.rewrite) {
+      self.audioData.toData(function(err, data) {
+        if (err)
+          return cb(err)
 
-  //Open target file for writing
+        cb(null, function(file, innerCB) {
+          file.write(data.toBuffer(), innerCB)
+        })
+      })
+      //We have to load the audioData into a buffer, before writing, or else we will overwrite it.
+    } else {                                 //v- return a NOP
+      process.nextTick(function() { cb(null, function(file, innerCB) { process.nextTick(innerCB) }) })
+    } 
 
-  var fmode = "w"
-  if (sameFile && !self.rewrite) {
-    fmode = "a" //Don't clear file on open
   }
 
+  //Load audio data if necessary and bind to audioFN
+  withAudioFN(function(err, audioFN) {
+    //Open target file for writing
 
-  File.open(path, fmode, function(err, file) {
-    if (err)
-      return callback(err)
+    var fmode = "w"
+    if (sameFile && !self.rewrite) {
+      fmode = "a" //Don't clear file on open
+    }
 
-    self.writeTagHeader(file, function(err) {
+
+    File.open(path, fmode, function(err, file) {
       if (err)
         return callback(err)
 
-      //Write frames
-      async.eachSeries(self.frames, (frame, cb) => { file.write(frame.data.toBuffer(), cb) }, (err) => {
+      self.writeTagHeader(file, function(err) {
         if (err)
           return callback(err)
 
+        //Write frames
+        async.eachSeries(self.frames, 
+          function(frame, cb) { file.write(frame.data.toBuffer(), cb) }, 
+          function(err) {
+          if (err)
+            return callback(err)
 
-        //TODO write padding
-        if (!sameFile || self.rewrite) {
-          //TODO we have to write the audiodata
-        }
-        file.close()
+          //Write padding
+          var padding = new Buffer(self.padding.size)
+          padding.fill(0x00) //Fill generated buffer with zero bytes
+          file.write(padding, function(err) {
+            if (err)
+              return callback(err)
+
+            //Now write the audio data (if needed) and close the file
+            audioFN(function(err) {
+              file.close()
+              if (err)
+                return callback(err)
+
+              process.nextTick(callback)
+            })
+          })
+        })
       })
     })
-  })
 
-  //TODO implement write to file
-  throw new Error("Not implemented yet!")
+  })
 }
 
 
