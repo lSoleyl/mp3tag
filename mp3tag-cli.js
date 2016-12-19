@@ -123,8 +123,7 @@ function getHeader(source, callback) {
  *                          bytes will be the number of bytes, written into the file.
  */
 function exportCover(tagData, destination, callback) {
-  //FIXME the export cover function is currently not working due to the latest refactoring.
-  var frameBuffer = tagData.getFrameBuffer('APIC')[0]
+  var frameBuffer = tagData.getFrameBuffer('APIC')
   if (!frameBuffer) {
     return callback("File has no picture frame")
   }
