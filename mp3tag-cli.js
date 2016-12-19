@@ -16,8 +16,9 @@ var out = require('./output')
  *  
  *  Other options:
  *    --export-cover [destination]   Export the cover image (if any) to destination (if given, default is "./cover.[mimetype]")
- *    --v                           Output debug info
- *    --show-data                   Prints out the contained tag data
+ *    --v                            Output debug info
+ *    --show-data                    Prints out the contained tag data
+ *    --set-album [name]             Sets/Unsets the album
  */
 var source = (argv["in"] && typeof argv["in"] == "string") ? argv["in"] : undefined 
 var write  = argv["write"]
@@ -46,10 +47,12 @@ getHeader(source, function(err, tagData) {
   if (err)
     return out.error(err)
 
-
   if (argv["show-data"]) {
     showData(tagData)
   }
+
+  if (argv['set-album'])
+    setFrameString(tagData, 'TALB', argv['set-album'])
 
 
   if (argv['export-cover']) {
@@ -59,6 +62,16 @@ getHeader(source, function(err, tagData) {
         return out.error("Cover export failed: " + err)
 
       out.info("Exported cover picture to: " + res.filename + " (" + res.bytes + " bytes written)")
+    })
+  }
+
+  if (write) {
+    out.debug("Writing mp3 to '" + write + "'")
+    tagData.writeToFile(write, function(err) {
+      if (err)
+        return out.error("Write to file failed: " + err)
+
+      out.info("Successfully written '" + write + "'")
     })
   }
 
@@ -141,4 +154,14 @@ function exportCover(tagData, destination, callback) {
       process.nextTick(function() { callback(null, {bytes:bytes, filename:filename}) })
     })
   })
+}
+
+/** Generic string writing utiltiy for string properties
+ */
+function setFrameString(tagData, frameID, value) {
+  if (typeof(value) !== 'string') {
+    tagData.removeFrame(frameID) //Just remove the frame
+  } else {
+    tagData.setFrameBuffer(frameID, tag.encodeString(value))
+  }
 }

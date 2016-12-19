@@ -14,6 +14,7 @@ var encoding = require('./encoding')
 var File = require('./file')
 var Data = require('./data')
 var TagData = require('./tagdata')
+var Frame = require('./frame')
 
 
 module.exports = {
@@ -179,14 +180,14 @@ function decodeString(buffer, encodingByte) {
  * @return the buffer with the encoded string
  */
 function encodeString(string, encoding) {
-  var cp = _.find(BOMs, function(bom) { return bom.encoding.toLowerCase() == encoding.toLowerCase() })
-  var strBuffer = cp.fromString(string, cp.encoding)
-  var result = new Buffer(strBuffer.length+cp.bom.length)
+  var enc = _.find(BOMs, function(bom) { return bom.encoding.toLowerCase() == encoding.toLowerCase() })
+  var strBuffer = cp.fromString(string, enc.encoding)
+  var result = new Buffer(strBuffer.length+enc.bom.length)
 
-  for(var c = 0; c < cp.bom.length; ++c)
-    result[c] = cp.bom[c]
+  for(var c = 0; c < enc.bom.length; ++c)
+    result[c] = enc.bom[c]
 
-  strBuffer.copy(result, cp.bom.length)
+  strBuffer.copy(result, enc.bom.length)
   return result
 }
 
@@ -247,7 +248,7 @@ function readID3v2(path, callback) {
         return callback(err)
       if (bytesRead < header.length)
         return callback(new Error("Can't read ID3 tag header!"))
-flags
+
       var marker = header.toString('ASCII', 0, 3)
       var majorVersion = header.readUInt8(3)
       var minorVersion = header.readUInt8(4)
@@ -295,18 +296,7 @@ flags
  */
 function getPadding(frames) {
   var frame = frames[frames.length-1] //Last frame is the padding frame (if any)
-  
-  if (frame.padding) { //Is this actually a padding frame?
-    return {
-      offset:frame.pos,
-      size:frame.size
-    }
-  } else {
-    return {
-      offset:frame.pos + frame.size, //Padding starts after last frame
-      size: 0                        //and has a size of 0
-    }
-  }
+  return frame.getPadding()
 }
 
 function readFrames(file, tagSize, callback) {
@@ -335,7 +325,7 @@ function readFrames(file, tagSize, callback) {
  *  this is determined by `mediaStart` and return one frame, which has the field `padding` set to true.
  *  The padding frame's size equals the exact size of the padding in bytes.
  *
- *  frame structure looks as follows:
+ *  frame structure looks as follows: (see frame.js)
  *  {
  *    id      - the frames id as string
  *    pos     - the file position at which this frame's data starts
@@ -349,60 +339,6 @@ function readFrames(file, tagSize, callback) {
  * @param callback(err,frame) will be called if frame has been read
  */
 function readFrame(file, mediaStart, callback) {
-  var buffer = new Buffer(TagData.frameHeaderSize)
-  file.read(buffer, 0, 1, function(err, byteRead) { //Read first byte to check for padding
-    if (err)
-      return process.nextTick(function() { callback(err) })
-    if (byteRead != 1)
-      return process.nextTick(function() { callback("Can't read initial byte of frame header") })
-
-    if (buffer[0] == 0) { //Encountered NULL-Byte (padding starts here)
-      file.seek(-1, 'curent')
-      var offset = file.pos
-      var paddingSize = mediaStart - file.pos
-      file.seek(mediaStart, 'start') //Move file pos to where audio starts
-
-      process.nextTick(function() { //Return padding frame
-        callback(null, {
-          id:"\0\0\0\0", //Padding has no id
-          pos:offset,
-          size:paddingSize,
-          flags:0,
-          padding:true
-        })
-      })
-    } else {
-      //Now that we know, that we don't have padding, we can read in the remaining frame header
-      file.read(buffer, 1, buffer.length-1, function(err, bytesRead) {
-        if (err)
-          return process.nextTick(function() { callback(err) })
-        if (bytesRead < buffer.length-1)
-          return process.nextTick(function() { callback("Can't read ID3 frame header!") })
-
-        var id = buffer.toString('ASCII', 0, 4)
-        var size = buffer.readUInt32BE(4)
-        var flags = buffer.readUInt16BE(8)
-        var pos = file.pos
-
-
-        file.seek(size)
-
-        //Read the whole frame into a buffer
-        file.readSlice(pos, size, function(err, frameBuffer) {
-          if (err)
-            return callback(err)
-
-          callback(null, {
-            id:id,
-            pos:pos,
-            size:size,
-            data: new Data(frameBuffer, 0, size),
-            flags:flags
-          })
-        })
-      })
-
-
-    }
-  })
+  //TODO remove this forwarding call
+  return Frame.read(file, mediaStart, callback)
 }

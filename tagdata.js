@@ -12,6 +12,8 @@ var encoding = require('./encoding')
 
 var Data = require('./data')
 var DataSource = require('./dataSource')
+var File = require('./file')
+var Frame = require('./frame')
 
 
 function TagData(file, version, flags, size, frames, padding, audioData) {
@@ -25,8 +27,6 @@ function TagData(file, version, flags, size, frames, padding, audioData) {
   this.rewrite = false    //true, if adding new frames has depleted all padding and file must be rewritten
 }
 
-//Constant size of header
-TagData.frameHeaderSize = 10
 //Constant size of ID3Tag header size
 TagData.tagHeaderSize = 10 
 
@@ -74,6 +74,17 @@ TagData.prototype.setFrameBuffer = function(id, buffer) {
   this.reallocateFrame(id, buffer)
 }
 
+/** Completely removes the given frame. 
+ *  If the frame doesn't exist, it does nothing.
+ *  It doesn't prevent the deletion of required frames.
+ *
+ * @param id the id of the frame to delete
+ */
+TagData.prototype.removeFrame = function(id) {
+  _.remove(this.frames, function(frame) { return frame.id == id })
+  this.realignFrames() //Realign all frames after a frame got deleted
+}
+
 
 /** This method will return the frame with the given id, and change it's size
  *  to fit the passed buffer. If the frame doesn't exist, it will be created.
@@ -92,16 +103,13 @@ TagData.prototype.reallocateFrame = function(id, buffer) {
     return this.allocateFrame(id, buffer)
 
   //Maybe no resizing necessary?
-  if (frame.size == size) {
-    frame.data = new Data(buffer)
-    return frame
+  var size = frame.size
+  frame.setBuffer(buffer)
+
+  if (frame.size != size) {
+    //Take care of realigning frames, adjusting padding and the tag's size
+    this.realignFrames()
   }
-
-  frame.size = buffer.length
-  frame.data = new Data(buffer)
-
-  //Take care of realigning frames, adjusting padding and the tag's size
-  this.realignFrames()
 
   return frame
 }
@@ -114,7 +122,7 @@ TagData.prototype.realignFrames = function() {
   var pos = TagData.tagHeaderSize //Starting position
   for(var i = 0; i < this.frames.length; ++i) {
     var frame = this.frames[i]
-    pos += TagData.frameHeaderSize //move position to start of data
+    pos += Frame.headerSize //move position to start of data
     
     //Move frame to correct position
     frame.pos = pos
@@ -146,13 +154,9 @@ TagData.prototype.realignFrames = function() {
  * @return the newly allocated frame
  */
 TagData.prototype.allocateFrame = function(id, buffer) {
-  var frame = { 
-    id:id,
-    size:size,
-    data:new Data(buffer)
-  }
+  var frame = Frame.allocate(id, buffer)
 
-  this.frames.push(frame)
+  this.frames.push(frame) //Insert as last frame
 
   //Realign frames will take care of setting the correct position and adjusting the padding
   this.realignFrames()
@@ -221,14 +225,23 @@ TagData.prototype.writeTagHeader = function(file, callback) {
  * @param callback(err, res) will be called upon completion
  */
 TagData.prototype.writeToFile = function(path, callback) {
-  //FIXME: this is more a pseudo code than acutal code... refactor it
   var self = this
   var sameFile = (self.audioData.source.name === path)
 
-  //This function will retrive the audioFN and call the provided callback with it
-  //AudioFN is a nop if no audio write is necessary
+  /**This function will retrive the audioFN and call the provided callback with it.
+   * AudioFN is a nop if no audio write is necessary
+   *
+   * @param cb(err, audioFn(file, innerCB)) - this callback gets called with an error or
+   *           an audioFn. The audioFn is used to write the audio data of the tagData into
+   *           the provided file. the innerCB is invoked if the audio data has been successfully written.
+   */ 
   function withAudioFN(cb) {
-    if (sameFile && self.rewrite) {
+    //We don't have to write audio if a rewrite isn't necessary and we write into the same file
+    if (sameFile && !self.rewrite) {
+      //Basically return a NOP
+      process.nextTick(function() { cb(null, function(file, innerCB) { process.nextTick(innerCB) }) })
+    } else { //Otherwise, writing audio is necessary
+      //We have to load the audioData into a buffer, before writing, or else we will overwrite it.
       self.audioData.toData(function(err, data) {
         if (err)
           return cb(err)
@@ -237,11 +250,7 @@ TagData.prototype.writeToFile = function(path, callback) {
           file.write(data.toBuffer(), innerCB)
         })
       })
-      //We have to load the audioData into a buffer, before writing, or else we will overwrite it.
-    } else {                                 //v- return a NOP
-      process.nextTick(function() { cb(null, function(file, innerCB) { process.nextTick(innerCB) }) })
-    } 
-
+    }
   }
 
   //Load audio data if necessary and bind to audioFN
@@ -264,7 +273,7 @@ TagData.prototype.writeToFile = function(path, callback) {
 
         //Write frames
         async.eachSeries(self.frames, 
-          function(frame, cb) { file.write(frame.data.toBuffer(), cb) }, 
+          function(frame, cb) { frame.write(file, cb) }, 
           function(err) {
           if (err)
             return callback(err)
@@ -277,7 +286,7 @@ TagData.prototype.writeToFile = function(path, callback) {
               return callback(err)
 
             //Now write the audio data (if needed) and close the file
-            audioFN(function(err) {
+            audioFN(file, function(err) {
               file.close()
               if (err)
                 return callback(err)
