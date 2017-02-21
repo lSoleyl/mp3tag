@@ -8,74 +8,137 @@ var File = require('./file')
 var out = require('./output')
 
 
+var parser = require('./cli/taskParser')
+
+
+var options = {
+  verbose: false
+}
+
 /** Command line interface to the mp3tag library
  *  Primary options: 
- *    --in <filename>              The source file to read. If not set, an empty file will be genrated.
+ *    --in [filename]              The source file to read. If not set, an empty file will be genrated.
  *
- *    --write [filename]           Specified that the changes, made to the tags should be written into filename. If filename is left out, the input file is used.
+ *    --write [filename]           Specifies that the changes, made to the tags should be written into filename. If filename is left out, the input file is used.
  *  
  *  Other options:
  *    --export-cover [destination]   Export the cover image (if any) to destination (if given, default is "./cover.[mimetype]")
  *    --v                            Output debug info
  *    --show-data                    Prints out the contained tag data
  *    --set-album [name]             Sets/Unsets the album
+ *    --set-track [trackNr]          Sets/Unsets the track number
  */
-var source = (argv["in"] && typeof argv["in"] == "string") ? argv["in"] : undefined 
-var write  = argv["write"]
 
-//Define debug output
-if (argv["v"])
-  out.config().debug = true
+var sourceFile
 
-if (write && typeof write != "string") { //only write specified
-  write = source
-  if (!write) {
-    out.error("Missing filename for --in parameter, or --write parameter")
-    process.exit(1)
-  }
-}
-
-
-function debug(err, result) {
-  if (err)
-    return out.error(err)
-
-  return console.dir(result)
-}
-
-getHeader(source, function(err, tagData) {
-  if (err)
-    return out.error(err)
-
-  if (argv["show-data"]) {
-    showData(tagData)
-  }
-
-  if (argv['set-album'])
-    setFrameString(tagData, 'TALB', argv['set-album'])
-
-
-  if (argv['export-cover']) {
-    var destination = (typeof argv['export-cover'] == "string") ? argv['export-cover'] : undefined
-    exportCover(tagData, destination, function(err, res) { 
-      if (err) 
-        return out.error("Cover export failed: " + err)
-
-      out.info("Exported cover picture to: " + res.filename + " (" + res.bytes + " bytes written)")
-    })
-  }
-
-  if (write) {
-    out.debug("Writing mp3 to '" + write + "'")
-    tagData.writeToFile(write, function(err) {
-      if (err)
-        return out.error("Write to file failed: " + err)
-
-      out.info("Successfully written '" + write + "'")
-    })
-  }
-
+//Options
+parser.defineTask('v', {
+  type:'option',
+  help_text: 'Verbose output'
+}, function(cb) {
+  options.verbose = true
+  out.config().debug = true //Enable debug logger
+  cb()
 })
+
+
+ //Sources
+parser.defineTask('in', {
+  max_args:1,
+  type:'source',
+  arg_display:'[filename]',
+  help_text: 'The source file to read. If not set, an empty file will be generated.'
+  }, function(cb) {
+    sourceFile = this.args[0] //Set the source from which the file has been read
+    getHeader(sourceFile, cb)
+})
+
+
+//Read operations
+parser.defineTask('export-cover', {
+  max_args:1,
+  type:'read',
+  arg_display:'[destination]',
+  help_text: 'Export the cover image (if any) to destination (if given, default is "./cover.[mimetype]")'
+}, function(tagData, cb) {
+  exportCover(tagData, this.args[0], function(err, res) { 
+    if (err) 
+      return cb("Cover export failed: " + err)
+
+    out.info("Exported cover picture to: " + res.filename + " (" + res.bytes + " bytes written)")
+    cb()
+  })
+})
+
+parser.defineTask('show-data', {
+  type:'read',
+  help_text:'Prints out the contained tag data'
+}, function(tagData, cb) {
+  showData(tagData)
+  cb()
+})
+
+//Write operations
+parser.defineTask('set-album', {
+  max_args: 1,
+  type: 'write',
+  arg_display: '[name]',
+  help_text: 'Sets/Unsets album name'
+}, function(tagData, cb) {
+  setFrameString(tagData, 'TALB', this.args[0])
+  cb()
+})
+
+
+parser.defineTask('set-track', {
+  max_args: 1,
+  type: 'write',
+  arg_display: '[trackNr]',
+  help_text: 'Sets/Unsets the track number'
+}, function(tagData, cb) {
+  setFrameString(tagData, 'TRCK', this.args[0])
+  cb()
+})
+
+
+///----------------------
+//TODO define other tasks
+///----------------------
+
+
+//Sinks
+parser.defineTask('write', {
+  max_args:1,
+  type:'sink',
+  arg_display:'[filename]',
+  help_text:'Specifies that the changes, made to the tags should be written into filename. If filename is left out, the input file is used.' + 
+  'The filename may not be left out if not filename was specified with --in'
+}, function(tagData, cb) {
+  var target = this.args[0] || sourceFile
+  if (!target)
+    return cb("Failed to write changes into file. No file passed to --in or --write task.")
+
+  out.debug("Writing mp3 to '" + target + "'")
+  tagData.writeToFile(target, function(err) {
+    if (err)
+      return cb("Write to file failed: " + err)
+
+    out.info("Successfully written '" + target + "'")
+    return cb()
+  })
+})
+
+
+try {
+  parser.run(process.argv.slice(2)) //TODO handle errors in callback
+} catch (err) { //Parsing might have failed
+  out.error("Startup error: " + err.message) 
+  console.error(err)
+  process.exit(1)
+}
+
+
+
 
 /** Simply prints all known data about the audio
  */
@@ -94,6 +157,8 @@ function showData(tagData) {
     
     console.log(asName + ": " + result)
   }
+
+  //TODO define methods to read/write these properties
 
   printOut('TIT2', "Title")
   printOut('TRCK', "Track")
