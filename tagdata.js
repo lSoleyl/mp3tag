@@ -25,6 +25,7 @@ function TagData(file, version, flags, size, frames, padding, audioData) {
   this.padding = padding  //padding bytes {'offset', 'size'}
   this.audioData = audioData || new DataSource(file, size)
   this.rewrite = false    //true, if adding new frames has depleted all padding and file must be rewritten
+  this.dirty = false      //true if any of the tag data has been changed since creation if the file isn't dirty saving into the same file is a noop
 }
 
 //Constant size of ID3Tag header size
@@ -102,6 +103,10 @@ TagData.prototype.reallocateFrame = function(id, buffer) {
   if (!frame)
     return this.allocateFrame(id, buffer)
 
+  //No change in data necessary, setting same content
+  if (frame.data.toBuffer().equals(buffer))
+    return frame
+
   //Maybe no resizing necessary?
   var size = frame.size
   frame.setBuffer(buffer)
@@ -110,6 +115,8 @@ TagData.prototype.reallocateFrame = function(id, buffer) {
     //Take care of realigning frames, adjusting padding and the tag's size
     this.realignFrames()
   }
+
+  this.dirty = true //Change in data happened
 
   return frame
 }
@@ -161,6 +168,8 @@ TagData.prototype.allocateFrame = function(id, buffer) {
   //Realign frames will take care of setting the correct position and adjusting the padding
   this.realignFrames()
 
+  this.dirty = true //Data has changed
+
   return frame
 }
 
@@ -182,6 +191,7 @@ TagData.prototype.getFrameData = function(id) {
  *  If possible it will try to use the padding area for that purpose. If the updated
  *  header fits inside the old header+padding then only the header part of the file will
  *  get updated and not the whole file.
+ *  If the tag data hasn't been changed, then no write operation takes place.
  *
  * @param callback(err,res) will be called upon completion
  */
@@ -220,6 +230,9 @@ TagData.prototype.writeTagHeader = function(file, callback) {
  *
  *  If the destination file is a .mp3 file, it will get completely overwritten.
  *  It won't be first parsed to preserve it's audio data.
+ *  If the target file equals this tagData's source file and the tagData hasn't changed since last load
+ *  or save then no file access occurrs. If the data has changed, then this operation will
+ *  reset this state.
  * 
  * @param path the file's path to write into
  * @param callback(err, res) will be called upon completion
@@ -227,6 +240,11 @@ TagData.prototype.writeTagHeader = function(file, callback) {
 TagData.prototype.writeToFile = function(path, callback) {
   var self = this
   var sameFile = (self.audioData.source.name === path)
+
+  //No change & same file -> no write necessary
+  if (sameFile && !this.dirty) {
+    return process.nextTick(callback)
+  }
 
   /**This function will retrive the audioFN and call the provided callback with it.
    * AudioFN is a nop if no audio write is necessary
@@ -290,6 +308,9 @@ TagData.prototype.writeToFile = function(path, callback) {
               file.close()
               if (err)
                 return callback(err)
+
+              if (sameFile) //Clear dirty flag if we have just updated the source file
+                self.dirty = false
 
               process.nextTick(callback)
             })

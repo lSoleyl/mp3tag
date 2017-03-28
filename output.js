@@ -1,7 +1,7 @@
 //A simple console logging module module
 
 
-//Default settings, change via output.settings().debug = true
+//Default settings, change via output.config().debug = true
 var config = {
   debug:false,
   info:true,
