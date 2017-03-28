@@ -99,6 +99,26 @@ parser.defineTask('set-artist', {
   cb()
 })
 
+parser.defineTask('set-band', {
+  max_args: 1,
+  type: 'write',
+  arg_display: '[name]',
+  help_text: 'Sets/Unsets band name'
+}, function(tagData, cb) {
+  setFrameString(tagData, 'TPE2', this.args[0])
+  cb()
+})
+
+
+parser.defineTask('set-title', {
+  max_args: 1,
+  type: 'write',
+  arg_display: '[title]',
+  help_text: 'Sets/Unsets the title'
+}, function(tagData, cb) {
+  setFrameString(tagData, 'TIT2', this.args[0])
+  cb()
+})
 
 parser.defineTask('set-track', {
   max_args: 1,
