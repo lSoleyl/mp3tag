@@ -75,7 +75,7 @@ var exportProperties = {} //The properties to export
 parser.defineTask('export-title', {
   max_args: 1,
   type: 'read',
-  args_display: '[property name]',
+  arg_display: '[property name]',
   help_text: 'exports the file\'s title in the export-format task or an empty string if none is set'
 }, function(tagData, cb) {
   var property = this.args[0] || 'title'
@@ -87,7 +87,7 @@ parser.defineTask('export-title', {
 parser.defineTask('export-publisher', {
   max_args: 1,
   type: 'read',
-  args_display: '[property name]',
+  arg_display: '[property name]',
   help_text: 'exports the file\'s publisher in the export-format task or an empty string if none is set'
 }, function(tagData, cb) {
   var property = this.args[0] || 'publisher'
@@ -99,7 +99,7 @@ parser.defineTask('export-publisher', {
 parser.defineTask('export-format', {
   max_args: 1,
   type: 'read',
-  args_display: '[format]',
+  arg_display: '[format]',
   help_text: 'actually exports the properties, which were exported via export-* tasks. Supported formats are: json,...'
 }, function(tagData, cb) {
   var format = this.args[0] || 'json'
