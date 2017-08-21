@@ -10,7 +10,7 @@ var out = require('./output')
 
 
 var parser = require('./cli/taskParser')
-
+const Interpolator = require('./cli/interpolator')
 
 var options = {
   verbose: false
@@ -24,12 +24,16 @@ var options = {
  *  
  *  Other options:
  *    --export-cover [destination]   Export the cover image (if any) to destination (if given, default is "./cover.[mimetype]")
+ *    --export-format [format]       Defines the format in which to export (eg. json)
+ *    --export-title [property]      Exports the title into the given property
+ *    --export-* [property]          ...
  *    --v                            Output debug info
  *    --show-data                    Prints out the contained tag data
  *    --set-album [name]             Sets/Unsets the album
  *    --set-track [trackNr]          Sets/Unsets the track number
  */
 
+var resolver
 var sourceFile
 
 //Options
@@ -51,7 +55,10 @@ parser.defineTask('in', {
   help_text: 'The source file to read. If not set, an empty file will be generated.'
   }, function(cb) {
     sourceFile = this.args[0] //Set the source from which the file has been read
-    getHeader(sourceFile, cb)
+    getHeader(sourceFile, function(err, tagData) {
+      resolver = new Interpolator(sourceFile, tagData)
+      return cb(err, tagData)
+    })
 })
 
 
@@ -187,8 +194,10 @@ parser.defineTask('set-artist', {
   arg_display: '[name]',
   help_text: 'Sets/Unsets artist name'
 }, function(tagData, cb) {
-  setFrameString(tagData, 'TPE1', this.args[0])
-  cb()
+  resolver.interpolate(this.args[0]).then((argString) => {
+    setFrameString(tagData, 'TPE1', argString)
+    cb()
+  })
 })
 
 parser.defineTask('set-band', {
