@@ -21,6 +21,7 @@
   "scripts":{
     "test":"mocha test/"
   },
+  "bin": "./mp3tag-cli.js",
   "preferGlobal":false,
   "private":true,
   "license":"MIT"
