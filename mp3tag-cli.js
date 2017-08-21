@@ -56,6 +56,44 @@ parser.defineTask('in', {
 
 
 //Read operations
+var exportProperties = {} //The collected properties to export
+parser.defineTask('export-album', {
+  max_args:1,
+  type:'read',
+  arg_display: '[property name]',
+  help_text: 'exports the album name'
+}, function(tagData, cb) {
+  var property = this.args[0] || 'album'
+  var buffer = tagData.getFrameBuffer('TALB')
+  exportProperties[property] = buffer ? tag.decodeString(buffer) : ''
+  cb()
+});
+
+parser.defineTask('export-artist', {
+  max_args: 1,
+  type: 'read',
+  arg_display: '[property name]',
+  help_text: 'exports the artist'
+}, function(tagData, cb) {
+  var property = this.args[0] || 'artist'
+  var buffer = tagData.getFrameBuffer('TPE1')
+  exportProperties[property] = buffer ? tag.decodeString(buffer) : ''
+  cb()
+})
+
+parser.defineTask('export-band', {
+  max_args: 1,
+  type: 'read',
+  arg_display: '[property name]',
+  help_text: 'exports the band name'
+}, function(tagData, cb) {
+  var property = this.args[0] || 'band'
+  var buffer = tagData.getFrameBuffer('TPE2')
+  exportProperties[property] = buffer ? tag.decodeString(buffer) : ''
+  cb()
+})
+
+
 parser.defineTask('export-cover', {
   max_args:1,
   type:'read',
@@ -71,15 +109,26 @@ parser.defineTask('export-cover', {
   })
 })
 
-var exportProperties = {} //The properties to export
 parser.defineTask('export-title', {
   max_args: 1,
   type: 'read',
   arg_display: '[property name]',
-  help_text: 'exports the file\'s title in the export-format task or an empty string if none is set'
+  help_text: 'exports the title'
 }, function(tagData, cb) {
   var property = this.args[0] || 'title'
   var buffer = tagData.getFrameBuffer('TIT2')
+  exportProperties[property] = buffer ? tag.decodeString(buffer) : ''
+  cb()
+})
+
+parser.defineTask('export-track', {
+  max_args: 1,
+  type: 'read',
+  arg_display: '[property name]',
+  help_text: 'exports the track'
+}, function(tagData, cb) {
+  var property = this.args[0] || 'track'
+  var buffer = tagData.getFrameBuffer('TRCK')
   exportProperties[property] = buffer ? tag.decodeString(buffer) : ''
   cb()
 })
@@ -88,7 +137,7 @@ parser.defineTask('export-publisher', {
   max_args: 1,
   type: 'read',
   arg_display: '[property name]',
-  help_text: 'exports the file\'s publisher in the export-format task or an empty string if none is set'
+  help_text: 'exports the publisher'
 }, function(tagData, cb) {
   var property = this.args[0] || 'publisher'
   var buffer = tagData.getFrameBuffer('TPUB')
