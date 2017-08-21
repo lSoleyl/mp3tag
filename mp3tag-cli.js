@@ -79,7 +79,19 @@ parser.defineTask('export-title', {
   help_text: 'exports the file\'s title in the export-format task or an empty string if none is set'
 }, function(tagData, cb) {
   var property = this.args[0] || 'title'
-  var buffer = tagData.getFrameBuffer()
+  var buffer = tagData.getFrameBuffer('TIT2')
+  exportProperties[property] = buffer ? tag.decodeString(buffer) : ''
+  cb()
+})
+
+parser.defineTask('export-publisher', {
+  max_args: 1,
+  type: 'read',
+  args_display: '[property name]',
+  help_text: 'exports the file\'s publisher in the export-format task or an empty string if none is set'
+}, function(tagData, cb) {
+  var property = this.args[0] || 'publisher'
+  var buffer = tagData.getFrameBuffer('TPUB')
   exportProperties[property] = buffer ? tag.decodeString(buffer) : ''
   cb()
 })
@@ -158,6 +170,16 @@ parser.defineTask('set-track', {
   help_text: 'Sets/Unsets the track number'
 }, function(tagData, cb) {
   setFrameString(tagData, 'TRCK', this.args[0])
+  cb()
+})
+
+parser.defineTask('set-publisher', {
+  max_args: 1,
+  type: 'write',
+  arg_display: '[publisher]',
+  help_text: 'Sets/Unsets the publisher'
+}, function(tagData, cb) {
+  setFrameString(tagData, 'TPUB', this.args[0])
   cb()
 })
 
