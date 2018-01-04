@@ -13,10 +13,13 @@
   },
   "keywords":["mp3", "id3", "id3v2"],
   "dependencies": {
-    "async": "*",
-    "lodash": "*",
-    "minimist":"1.2.0",
-    "chai":"*"
+    "async": "^2.6.0",
+    "lodash": "^7.1.2",
+    "minimist":"^1.2.0"
+  },
+  "devDependencies": {
+    "chai":"*",
+    "mocha":"*"
   },
   "scripts":{
     "test":"mocha test/"
