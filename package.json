@@ -14,7 +14,7 @@
   "keywords":["mp3", "id3", "id3v2"],
   "dependencies": {
     "async": "^2.6.0",
-    "lodash": "^7.1.2",
+    "lodash": "^4.17.4",
     "minimist":"^1.2.0"
   },
   "devDependencies": {
