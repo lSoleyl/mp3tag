@@ -262,7 +262,7 @@ function readID3v2(path, callback) {
         //TODO create empty header or something like this
       } else {
         if (majorVersion != 3) //TODO implement support for other versions as well
-          return callback(new Error("Unsupported ID3 version: " + version))
+          return callback(new Error("Unsupported ID3 version: " + majorVersion + "." + minorVersion))
         
 
 
