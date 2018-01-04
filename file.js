@@ -94,7 +94,7 @@ File.prototype.seek = function(bytes, relativeTo) {
 
 
 File.prototype.close = function() {
-  fs.close(this.fd)
+  fs.close(this.fd, function() {})
   this.fd = undefined
   this.pos = undefined
 }
