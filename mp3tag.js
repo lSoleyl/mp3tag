@@ -75,7 +75,7 @@ module.exports = {
     var data = buffer.slice(4)
     
     try {
-      encoding = getBufferEncoding(data, encodingByte)
+      getBufferEncoding(data, encodingByte)
     } catch (e) {
       throw new Error("Unsupported buffer encoding: " + buffer.inspect())
     }
