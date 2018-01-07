@@ -289,14 +289,15 @@ try {
 /** Simply prints all known data about the audio
  */
 function showData(tagData) {
+  var decoder = tagData.decoder
   console.dir(tagData)
   console.log("\n")
 
   function printOut(id, asName, decodefn) {
-    var decfn = decodefn || tagData.decoder.decodeString.bind(tagData.decoder)
+    var decfn = decodefn || decoder.decodeString
     var buffer = tagData.getFrameBuffer(id)
 
-    var result = buffer ? decfn(tagData.getFrameBuffer(id)) : ""
+    var result = buffer ? decfn.call(decoder, tagData.getFrameBuffer(id)) : ""
     if (typeof result !== 'string')
       result = JSON.stringify(result, null, 2)
     
@@ -309,11 +310,11 @@ function showData(tagData) {
   printOut('TIT2', "Title")
   printOut('TRCK', "Track")
   printOut('TALB', "Album")
-  printOut('COMM', "Comment", tag.decodeComment)
+  printOut('COMM', "Comment", decoder.decodeComment)
   printOut('TYER', "Year")
   printOut('TPE1', "Lead performer")
   printOut('TPE2', "Band")
-  printOut('POPM', "Popularimeter", tag.decodePopularity)
+  printOut('POPM', "Popularimeter", decoder.decodePopularity)
   printOut('APIC', "Picture", function(buffer) {
     var res = tag.decodePicture(buffer)
     res.pictureData = res.pictureData.inspect()

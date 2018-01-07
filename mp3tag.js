@@ -24,20 +24,7 @@ module.exports = {
    */
   newHeader: function() { return TagData.empty() },
 
-  decodeString: function(buffer) {
-    if (!(buffer instanceof Buffer)) {
-      throw new Error("Expected buffer, got: " + typeof(buffer) + " - " + util.inspect(buffer, {showHidden:true}))
-    }
-
-    var data = buffer.slice(1)
-    try {
-      return decodeString(data, buffer[0])
-    } catch(e) {
-      throw new Error("Unsupported buffer encoding: " + buffer.inspect())
-    }
-  }, 
-
-
+  //TODO mve this into the Decoder class
   encodeString: function(string) {
     if (!(typeof string == "string"))
       throw new Error("Expected string, got: " + typeof(string) + " - " + util.inspect(string, {showHidden:true}))
@@ -50,48 +37,7 @@ module.exports = {
     return result
   },
 
-  decodePopularity:function(buffer) { //v-- no unicode support for email
-    var email = decodeCString(buffer, 0x00)
-    var rating = buffer[email.pastNullPos]
-    var offset = email.pastNullPos + 1
-    var played = decodeNumberBE(buffer, offset, buffer.length - offset)
-
-    return {
-      email:email.string,
-      rating:rating,
-      playCount:played
-    }
-  },
-
-
-  decodeComment:function(buffer) {
-    if (!(buffer instanceof Buffer)) {
-      throw new Error("Expected buffer, got: " + typeof(buffer) + " - " + util.inspect(buffer, {showHidden:true}))
-    }
-
-
-    var encodingByte = buffer[0]
-    var language = buffer.toString('ascii', 1, 3)
-    var data = buffer.slice(4)
-    
-    try {
-      getBufferEncoding(data, encodingByte)
-    } catch (e) {
-      throw new Error("Unsupported buffer encoding: " + buffer.inspect())
-    }
-
-    var cData = decodeCString(data, encodingByte) //TODO try catch other error
-
-    var shortComment = cData.string
-    var longComment = decodeString(data.slice(cData.pastNullPos))
-
-    return {
-      language:language,
-      short:shortComment,
-      long:longComment
-    }
-  },
-
+  //TODO move this into the Decoder class
   decodePicture: function(buffer) {
     if (!(buffer instanceof Buffer)) {
       throw new Error("Expected buffer, got: " + typeof(buffer) + " - " + util.inspect(buffer, {showHidden:true}))
@@ -117,52 +63,7 @@ module.exports = {
   }
 }
 
-function decodeNumberBE(buffer, offset, bytes) {
-  var result = 0
-  for(var c = offset; c < offset + bytes; ++c) {
-    result = ((result << 8) | buffer[c]) //Decode big endian number
-  }
-  return result
-}
 
-
-
-/** Receives a zero terminated buffer to decode from and the encoding byte
- *  
- * @param buffer the buffer to read the string from
- * @param encodingByte the byte, which specifies encoding
- *
- * @return returns {string,nullPos,pastNullPos}
- */
-function decodeCString(buffer, encodingByte) {
-  var encoding = getBufferEncoding(buffer, encodingByte)
-
-  var result = {}
-  result.nullPos = getStringEndPos(buffer, encoding.dbe)
-
-  if (result.nullPos == -1)
-    throw new Error("Expected NULL terminated string, missing NULL byte(s), with encoding: " + encoding.encoding)
-
-  result.pastNullPos = result.nullPos + (encoding.dbe ? 2 : 1)
-
-  var contentslice = buffer.slice(encoding.bom.length, result.nullPos - encoding.bom.length)
-  
-  result.string = cp.fromBuffer(contentslice, encoding.encoding)
-  return result
-}
-
-/** Same as decodeCString, but this string isn't zero terminated. The whole
- *  buffer is treated as string.
- * 
- * @param buffer the buffer to read from
- * @param encodingByte the byte which specifies, which encoding to use
- *
- * @return decoded string
- */
-function decodeString(buffer, encodingByte) {
-  var encoding = getBufferEncoding(buffer, encodingByte)
-  return cp.fromBuffer(buffer.slice(encoding.bom.length), encoding.encoding)
-}
 
 /** Encodes the string into a buffer with the encoding's BOM.
  *  The encodingByte won't be written into the buffer as this is format specific.
@@ -182,26 +83,6 @@ function encodeString(string, encoding) {
 
   strBuffer.copy(result, enc.bom.length)
   return result
-}
-
-/** Returns the offset of the NULL (double-)byte inside a string buffer
- *
- * @param buffer the buffer to search
- * @param isDoubleNull if true, the function treats the byte buffer like a two byte encoding
- */
-function getStringEndPos(buffer, isDoubleNull) {
-  for(var c = 0; c < buffer.length; ++c) {
-    if (buffer[c] == 0x00 && !isDoubleNull) 
-      return c
-    else if (buffer[c] == 0x00 && buffer[c+1] == 0x00 && isDoubleNull) {
-      return c
-    }
-
-    if (isDoubleNull)
-      ++c //Additional increment if double byte NULL is expected
-  }
-
-  return -1 //Not found
 }
 
 /** 
@@ -235,7 +116,16 @@ function readID3v2(path, callback) {
         // This library supports v2.3 and v2.4 (though 2.4 is not yet complete)
         var hasFooter = false
         if (majorVersion === 4) {
-          hasFooter = (flags & 0x10) != 0 //TODO how do we handle the footer, what do we have do with it?
+          hasFooter = (flags & 0x10) != 0 
+          //TODO how do we handle the footer, what do we have do with it?
+
+          /** Meaning of the footer:
+           *
+           *  1. Having a footer means, the file cannot contain padding 
+           *  2. The footer is (like the header) not included in the header's size field
+           *  3. The footer is 10 bytes long and has the structure:
+           *      "3DI" <majorV:1><minorV:1><flags:1><size:4>
+           */
         } else if (majorVersion !== 3) {
           return callback(new Error("Unsupported ID3 version: 2." + majorVersion + "." + minorVersion))
         }
