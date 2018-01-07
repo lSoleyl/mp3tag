@@ -293,7 +293,7 @@ function showData(tagData) {
   console.log("\n")
 
   function printOut(id, asName, decodefn) {
-    var decfn = decodefn || tag.decodeString
+    var decfn = decodefn || tagData.decoder.decodeString.bind(tagData.decoder)
     var buffer = tagData.getFrameBuffer(id)
 
     var result = buffer ? decfn(tagData.getFrameBuffer(id)) : ""

@@ -117,13 +117,6 @@ module.exports = {
   }
 }
 
-var BOMs = [
-  {encoding:'UTF-16LE', bom:[0xFF, 0xFE], dbe:true},
-  {encoding:'UTF-16BE', bom:[0xFE, 0xFF], dbe:true},
-  {encoding:'UTF-8',    bom:[0xEF, 0xBB, 0xBF], dbe:false},
-  {encoding:'UTF-8',    bom:[], dbe:false} //Empty bom sets the default codepage
-]
-
 function decodeNumberBE(buffer, offset, bytes) {
   var result = 0
   for(var c = offset; c < offset + bytes; ++c) {
@@ -211,28 +204,6 @@ function getStringEndPos(buffer, isDoubleNull) {
   return -1 //Not found
 }
 
-
-function getBufferEncoding(buffer, encodingByte) {
-  if (encodingByte === undefined)
-    encodingByte = 0x01 //Default is unicode if not passed
-
-  if (encodingByte === 0x00) //ISO-8895-1 encoding
-    return {encoding:'ISO-8895-1', bom:[], dbe:false}
-
-  if (encodingByte === 0x01) { //UC (search for BOM and look up)
-    return _.find(BOMs, function(encoding) {
-      for(var c = 0; c < encoding.bom.length; ++c) {
-        if (buffer[c] !== encoding.bom[c]) 
-          return false
-      }
-
-      return true
-    })
-  }
-
-  throw new Error("Unknown encoding byte: '" + encodingByte + "'")
-}
-
 /** 
  * @param path the filepath to read the tag data from
  * @param callback the callback which receives the ID3 tag data
@@ -261,12 +232,18 @@ function readID3v2(path, callback) {
         return callback(new Error("No support for tagless files yet!"))
         //TODO create empty header or something like this
       } else {
-        if (majorVersion != 3) //TODO implement support for other versions as well
+        // This library supports v2.3 and v2.4 (though 2.4 is not yet complete)
+        var hasFooter = false
+        if (majorVersion === 4) {
+          hasFooter = (flags & 0x10) != 0 //TODO how do we handle the footer, what do we have do with it?
+        } else if (majorVersion !== 3) {
           return callback(new Error("Unsupported ID3 version: 2." + majorVersion + "." + minorVersion))
+        }
         
 
 
         var hasExtendedHeader = (flags & 0x40) != 0
+        
         if (hasExtendedHeader)
           return callback(new Error("No support for extended header yet!"))
 

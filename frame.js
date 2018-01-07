@@ -125,7 +125,7 @@ Frame.read = function(file, mediaStart, callback) {
 
         var id = buffer.toString('ASCII', 0, 4)
         var size = buffer.readUInt32BE(4)
-        var flags = buffer.readUInt16BE(8)
+        var flags = buffer.readUInt16BE(8) //TODO what about the compression and encryption flags!?
         var pos = file.pos
 
 

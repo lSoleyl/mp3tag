@@ -14,6 +14,7 @@ var Data = require('./data')
 var DataSource = require('./dataSource')
 var File = require('./file')
 var Frame = require('./frame')
+var Decoder = require('./decoder')
 
 
 function TagData(file, version, flags, size, frames, padding, audioData) {
@@ -26,6 +27,7 @@ function TagData(file, version, flags, size, frames, padding, audioData) {
   this.audioData = audioData || new DataSource(file, size)
   this.rewrite = false    //true, if adding new frames has depleted all padding and file must be rewritten
   this.dirty = false      //true if any of the tag data has been changed since creation if the file isn't dirty saving into the same file is a noop
+  this.decoder = new Decoder(version)
 }
 
 //Constant size of ID3Tag header size
@@ -321,7 +323,6 @@ TagData.prototype.writeToFile = function(path, callback) {
 
   })
 }
-
 
 
 //export class
