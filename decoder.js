@@ -4,6 +4,8 @@
 
 var cp = require('./cp')
 
+var Data = require('./data')
+
 /** List of unicode encodings supported as text encoding
  */
 var UCEncodings = [
@@ -61,7 +63,7 @@ Decoder.prototype.decodeComment = function(buffer) {
     throw new Error("Unsupported buffer encoding: " + buffer.inspect())
   }
 
-  var cData = internal.decodeCString(data, encodingByte) //TODO try catch other error
+  var cData = internal.decodeCString(this, data, encodingByte) //TODO try catch other error
 
   var shortComment = cData.string
   var longComment = internal.decodeString(this, data.slice(cData.pastNullPos))
@@ -80,18 +82,42 @@ Decoder.prototype.decodeComment = function(buffer) {
  * @return {email,rating,playCount}
  */
 Decoder.prototype.decodePopularity = function(buffer) { 
-                                      //v-- no unicode support for email
-    var email = internal.decodeCString(buffer, 0x00)
-    var rating = buffer[email.pastNullPos]
-    var offset = email.pastNullPos + 1
-    var played = internal.decodeNumberBE(buffer, offset, buffer.length - offset)
+                                    //v-- no unicode support for email
+  var email = internal.decodeCString(this, buffer, 0x00)
+  var rating = buffer[email.pastNullPos]
+  var offset = email.pastNullPos + 1
+  var played = internal.decodeNumberBE(buffer, offset, buffer.length - offset)
 
-    return {
-      email:email.string,
-      rating:rating,
-      playCount:played
-    }
-  },
+  return {
+    email:email.string,
+    rating:rating,
+    playCount:played
+  }
+}
+
+Decoder.prototype.decodePicture = function(buffer) {
+  if (!(buffer instanceof Buffer)) {
+    throw new Error("Expected buffer, got: " + typeof(buffer) + " - " + util.inspect(buffer, {showHidden:true}))
+  }
+
+  var encodingByte = buffer[0]
+
+  var dataBuffer = buffer.slice(1)         //v-- MIME will always be ISO-8895-1
+  var mimeData = internal.decodeCString(this, dataBuffer, 0x00)
+  var mimeType = mimeData.string
+  var pictureType = dataBuffer[mimeData.pastNullPos]
+  var descriptionBuffer = dataBuffer.slice(mimeData.pastNullPos + 1)
+  var descData = internal.decodeCString(this, descriptionBuffer, encodingByte)
+  var description = descData.string
+  var pictureData = descriptionBuffer.slice(descData.pastNullPos)
+
+  return {
+    mimeType: mimeType,      //String
+    pictureType: pictureType,//Integer
+    description: description,//String
+    pictureData: new Data(pictureData) //BufferData
+  }
+}
 
 /** Returns the encoding for the given buffer and encodingByte
  *  If no encodingByte is passed the encoding is being guessed by searching the buffer

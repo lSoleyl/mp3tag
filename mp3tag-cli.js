@@ -72,7 +72,7 @@ parser.defineTask('export-album', {
 }, function(tagData, cb) {
   var property = this.args[0] || 'album'
   var buffer = tagData.getFrameBuffer('TALB')
-  exportProperties[property] = buffer ? tag.decodeString(buffer) : ''
+  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : ''
   cb()
 });
 
@@ -84,7 +84,7 @@ parser.defineTask('export-artist', {
 }, function(tagData, cb) {
   var property = this.args[0] || 'artist'
   var buffer = tagData.getFrameBuffer('TPE1')
-  exportProperties[property] = buffer ? tag.decodeString(buffer) : ''
+  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : ''
   cb()
 })
 
@@ -96,7 +96,7 @@ parser.defineTask('export-band', {
 }, function(tagData, cb) {
   var property = this.args[0] || 'band'
   var buffer = tagData.getFrameBuffer('TPE2')
-  exportProperties[property] = buffer ? tag.decodeString(buffer) : ''
+  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : ''
   cb()
 })
 
@@ -124,7 +124,7 @@ parser.defineTask('export-title', {
 }, function(tagData, cb) {
   var property = this.args[0] || 'title'
   var buffer = tagData.getFrameBuffer('TIT2')
-  exportProperties[property] = buffer ? tag.decodeString(buffer) : ''
+  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : ''
   cb()
 })
 
@@ -136,7 +136,7 @@ parser.defineTask('export-track', {
 }, function(tagData, cb) {
   var property = this.args[0] || 'track'
   var buffer = tagData.getFrameBuffer('TRCK')
-  exportProperties[property] = buffer ? tag.decodeString(buffer) : ''
+  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : ''
   cb()
 })
 
@@ -148,7 +148,7 @@ parser.defineTask('export-publisher', {
 }, function(tagData, cb) {
   var property = this.args[0] || 'publisher'
   var buffer = tagData.getFrameBuffer('TPUB')
-  exportProperties[property] = buffer ? tag.decodeString(buffer) : ''
+  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : ''
   cb()
 })
 
@@ -316,7 +316,7 @@ function showData(tagData) {
   printOut('TPE2', "Band")
   printOut('POPM', "Popularimeter", decoder.decodePopularity)
   printOut('APIC', "Picture", function(buffer) {
-    var res = tag.decodePicture(buffer)
+    var res = decoder.decodePicture(buffer)
     res.pictureData = res.pictureData.inspect()
     return res
   })
@@ -352,7 +352,7 @@ function exportCover(tagData, destination, callback) {
   if (!frameBuffer) {
     return callback("File has no picture frame")
   }
-  var pic = tag.decodePicture(frameBuffer)
+  var pic = tagData.decoder.decodePicture(frameBuffer)
   var filename = destination || ("cover." + pic.mimeType.split('/')[1])
   File.open(filename, "w", function(err, file) {
     if (err) 

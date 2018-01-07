@@ -35,31 +35,6 @@ module.exports = {
     result[0] = 0x01 //encoding byte = unicode
     bomBuf.copy(result,1)
     return result
-  },
-
-  //TODO move this into the Decoder class
-  decodePicture: function(buffer) {
-    if (!(buffer instanceof Buffer)) {
-      throw new Error("Expected buffer, got: " + typeof(buffer) + " - " + util.inspect(buffer, {showHidden:true}))
-    }
-
-    var encodingByte = buffer[0]
-
-    var dataBuffer = buffer.slice(1)         //v-- MIME will always be ISO-8895-1
-    var mimeData = decodeCString(dataBuffer, 0x00)
-    var mimeType = mimeData.string
-    var pictureType = dataBuffer[mimeData.pastNullPos]
-    var descriptionBuffer = dataBuffer.slice(mimeData.pastNullPos + 1)
-    var descData = decodeCString(descriptionBuffer, encodingByte)
-    var description = descData.string
-    var pictureData = descriptionBuffer.slice(descData.pastNullPos)
-
-    return {
-      mimeType: mimeType,      //String
-      pictureType: pictureType,//Integer
-      description: description,//String
-      pictureData: new Data(pictureData) //BufferData
-    }
   }
 }
 
