@@ -271,7 +271,12 @@ parser.defineTask('write', {
 
 
 try {
-  parser.run(process.argv.slice(2)) //TODO handle errors in callback
+  parser.run(process.argv.slice(2), function(err) {
+    if (err) {
+      console.error("ERROR: ", err);
+      process.exitCode = 2;
+    }
+  }) //TODO handle errors in callback
 } catch (err) { //Parsing might have failed
   out.error("Startup error: " + err.message) 
   console.error(err)
