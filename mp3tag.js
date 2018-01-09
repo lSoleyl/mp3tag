@@ -58,7 +58,8 @@ function readID3v2(path, callback) {
         var hasFooter = false
         if (majorVersion === 4) {
           hasFooter = (flags & 0x10) != 0 
-          headerSize += 10 //footer isn't included in the headersize either
+          if (hasFooter)
+            headerSize += 10 //footer isn't included in the headersize either
 
           /** Meaning of the footer:
            *

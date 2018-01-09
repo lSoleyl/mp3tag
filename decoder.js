@@ -20,8 +20,7 @@ var UCEncodings = [
  */
 var DEFAULT_ENCODINGS = {
   3: _.defaults({encodingByte:0x01}, UCEncodings[0]),  //UTF-16LE with bom
-  4: _.defaults({encodingByte:0x01}, UCEncodings[0])   //UTF-16LE with bom (UTF-8 doesn't work well yet)
-  //TODO figure out why UTF-8 frame encoding isn't correctly interpreted by windows
+  4: _.defaults({encodingByte:0x03}, UCEncodings[3])   //UTF-8 without bom
 }
 
 
