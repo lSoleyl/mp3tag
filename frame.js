@@ -107,7 +107,7 @@ Frame.read = function(file, mediaStart, callback) {
       return process.nextTick(function() { callback(new Error("Can't read initial byte of frame header")) })
 
     if (buffer[0] == 0) { //Encountered NULL-Byte (padding starts here)
-      file.seek(-1, 'curent')
+      file.seek(-1, 'current')
       var offset = file.pos
       var paddingSize = mediaStart - file.pos
       file.seek(mediaStart, 'start') //Move file pos to where audio starts

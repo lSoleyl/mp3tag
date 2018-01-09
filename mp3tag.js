@@ -22,43 +22,9 @@ module.exports = {
 
   /** Returns an empty mp3 tag header
    */
-  newHeader: function() { return TagData.empty() },
-
-  //TODO mve this into the Decoder class
-  encodeString: function(string) {
-    if (!(typeof string == "string"))
-      throw new Error("Expected string, got: " + typeof(string) + " - " + util.inspect(string, {showHidden:true}))
-
-    var bomBuf = encodeString(string, "UTF-16LE")
-
-    var result = new Buffer(bomBuf.length+1)
-    result[0] = 0x01 //encoding byte = unicode
-    bomBuf.copy(result,1)
-    return result
-  }
+  newHeader: function() { return TagData.empty() }
 }
 
-
-
-/** Encodes the string into a buffer with the encoding's BOM.
- *  The encodingByte won't be written into the buffer as this is format specific.
- *  
- * @param string the string to encode
- * @param encoding the name of the encoding to use
- *
- * @return the buffer with the encoded string
- */
-function encodeString(string, encoding) {
-  var enc = _.find(BOMs, function(bom) { return bom.encoding.toLowerCase() == encoding.toLowerCase() })
-  var strBuffer = cp.fromString(string, enc.encoding)
-  var result = new Buffer(strBuffer.length+enc.bom.length)
-
-  for(var c = 0; c < enc.bom.length; ++c)
-    result[c] = enc.bom[c]
-
-  strBuffer.copy(result, enc.bom.length)
-  return result
-}
 
 /** 
  * @param path the filepath to read the tag data from
@@ -92,7 +58,7 @@ function readID3v2(path, callback) {
         var hasFooter = false
         if (majorVersion === 4) {
           hasFooter = (flags & 0x10) != 0 
-          //TODO how do we handle the footer, what do we have do with it?
+          headerSize += 10 //footer isn't included in the headersize either
 
           /** Meaning of the footer:
            *

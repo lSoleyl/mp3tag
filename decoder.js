@@ -3,6 +3,7 @@
  */ 
 
 var cp = require('./cp')
+var _ = require('lodash')
 
 var Data = require('./data')
 
@@ -14,6 +15,14 @@ var UCEncodings = [
   {encoding:'UTF-8',    bom:[0xEF, 0xBB, 0xBF], dbe:false},
   {encoding:'UTF-8',    bom:[], dbe:false} //Empty bom sets the default codepage
 ]
+
+/** Defines the default encoding for the encodeString method
+ */
+var DEFAULT_ENCODINGS = {
+  3: _.defaults({encodingByte:0x01}, UCEncodings[0]),  //UTF-16LE with bom
+  4: _.defaults({encodingByte:0x01}, UCEncodings[0])   //UTF-16LE with bom (UTF-8 doesn't work well yet)
+  //TODO figure out why UTF-8 frame encoding isn't correctly interpreted by windows
+}
 
 
 /** Creates a new decoder for the given tag version
@@ -159,6 +168,27 @@ Decoder.prototype.getBufferEncoding = function(buffer, encodingByte) {
 }
 
 
+/** Encodes the given string into a buffer with the default encoding, which is
+ *  UTF-16LE for v2.3 and UTF-8 for v2.4.
+ *
+ * @param string the string to encode
+ *
+ * @return the encoded buffer
+ */
+Decoder.prototype.encodeString = function(string) {
+  if (!(typeof string == "string"))
+      throw new Error("Expected string, got: " + typeof(string) + " - " + util.inspect(string, {showHidden:true}))
+
+    var encoding = DEFAULT_ENCODINGS[this.version];
+    var bomBuf = internal.encodeString(string, encoding)
+
+    var result = new Buffer(bomBuf.length+1)
+    result[0] = encoding.encodingByte //set appropriate encoding byte
+    bomBuf.copy(result,1)
+    return result
+}
+
+
 ////
 //  INTERNAL HELPER FUNCTIONS
 //
@@ -209,6 +239,26 @@ internal.decodeCString = function(decoder, buffer, encodingByte) {
 }
 
 
+/** Encodes the string into a buffer with the encoding's BOM.
+ *  The encodingByte won't be written into the buffer as this is format specific.
+ *  
+ * @param string the string to encode
+ * @param encoding{encoding,bom,dbe} the encoding object, which represents the encoding to use
+ *
+ * @return the buffer with the encoded string
+ */
+internal.encodeString = function(string, encoding) {
+  var strBuffer = cp.fromString(string, encoding.encoding)
+  var result = new Buffer(strBuffer.length+encoding.bom.length)
+
+  for(var c = 0; c < encoding.bom.length; ++c)
+    result[c] = encoding.bom[c]
+
+  strBuffer.copy(result, encoding.bom.length)
+  return result
+}
+
+
 /** Returns the offset of the NULL (double-)byte inside a string buffer
  *
  * @param buffer the buffer to search
@@ -236,8 +286,6 @@ internal.decodeNumberBE = function(buffer, offset, bytes) {
   }
   return result
 }
-
-//TODO move missing methods (decodeComment, decodePicture, encodeString, ...)
 
 
 

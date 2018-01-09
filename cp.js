@@ -58,5 +58,6 @@ var from = {
 
 
 var to = {
-  "utf-16le": function(string) { return new Buffer(string, 'utf16le') }
+  "utf-16le": function(string) { return new Buffer(string, 'utf16le') },
+  "utf-8": function(string) { return new Buffer(string, 'utf8') }
 }
