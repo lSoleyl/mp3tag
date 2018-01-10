@@ -1,20 +1,20 @@
 //Node dependencies
-var fs = require('fs')
-var util = require('util')
+const fs = require('fs')
+const util = require('util')
 
 //External dependencies
-var async = require('async')
-var _ = require('lodash')
+const async = require('async')
+const _ = require('lodash')
 
 //Utilities
-var cp = require('./cp')
-var encoding = require('./encoding')
+const cp = require('./cp')
+const encoding = require('./encoding')
 
 //Classes
-var File = require('./file')
-var Data = require('./data')
-var TagData = require('./tagdata')
-var Frame = require('./frame')
+const File = require('./file')
+const Data = require('./data')
+const TagData = require('./tagdata')
+const Frame = require('./frame')
 
 
 module.exports = {
@@ -59,7 +59,7 @@ function readID3v2(path, callback) {
         if (majorVersion === 4) {
           hasFooter = (flags & 0x10) != 0 
           if (hasFooter)
-            headerSize += 10 //footer isn't included in the headersize either
+            headerSize += TagData.tagFooterSize //footer isn't included in the headersize either
 
           /** Meaning of the footer:
            *

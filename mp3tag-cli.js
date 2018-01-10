@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 var argv = require('minimist')(process.argv.slice(2))
-var _ = require('lodash')
-var async = require('async')
+const _ = require('lodash')
+const async = require('async')
 
-var tag = require('./mp3tag')
-var File = require('./file')
+const tag = require('./mp3tag')
+const File = require('./file')
 
-var out = require('./output')
+const out = require('./output')
 
 
-var parser = require('./cli/taskParser')
+const parser = require('./cli/taskParser')
 const Interpolator = require('./cli/interpolator')
 
 var options = {

@@ -1,7 +1,7 @@
 /** Frame class module
  */
 
-var Data = require('./data')
+const Data = require('./data')
 
 
 class Frame {

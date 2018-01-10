@@ -25,6 +25,9 @@
     "chai": "*",
     "mocha": "*"
   },
+  "engines":{
+    "node":">=6.9.0"
+  },
   "scripts": {
     "test": "mocha test/"
   },

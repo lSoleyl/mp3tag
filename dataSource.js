@@ -3,8 +3,8 @@
  */
 
 
-var File = require('./file')
-var Data = require('./data')
+const File = require('./file')
+const Data = require('./data')
 
 /** Constructs the data source from a file and optional offset and length.
  *
