@@ -131,10 +131,10 @@ class TagData {
     }
 
     //Padding start position may have changed
-    var paddingDelta = pos - this.padding.pos
+    var paddingDelta = pos - this.padding.offset
 
     //Move resize padding accordingly
-    this.padding.pos  += paddingDelta
+    this.padding.offset  += paddingDelta
     this.padding.size -= paddingDelta
 
     if (this.padding.size < 0) { //No padding left
