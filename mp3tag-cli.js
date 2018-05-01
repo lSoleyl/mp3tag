@@ -374,6 +374,6 @@ function setFrameString(tagData, frameID, value) {
   if (typeof(value) !== 'string') {
     tagData.removeFrame(frameID) //Just remove the frame
   } else {
-    tagData.setFrameBuffer(frameID, tag.encodeString(value))
+    tagData.setFrameBuffer(frameID, tagData.decoder.encodeString(value))
   }
 }
