@@ -2,6 +2,8 @@
  *  framedecoding and -encoding method based on the tags version.
  */ 
 
+const util = require('util')
+
 const cp = require('./cp')
 const _ = require('lodash')
 
@@ -65,7 +67,7 @@ class Decoder {
 
 
     var encodingByte = buffer[0]
-    var language = buffer.toString('ascii', 1, 3)
+    var language = buffer.toString('ascii', 1, 4) // the language code has acutally 3 characters!
     var data = buffer.slice(4)
     
     try {
@@ -84,6 +86,29 @@ class Decoder {
       short:shortComment,
       long:longComment
     }
+  }
+
+  /** Encodes the given comment object back into a buffer
+   *  
+   * @param comment a comment object {language,short,long}
+   * 
+   * @return the encoded buffer
+   */
+  encodeComment(comment) {
+    var encoding = DEFAULT_ENCODINGS[this.version];
+
+    var shortComment = internal.encodeCString(comment.short, encoding);
+    var longComment = internal.encodeString(comment.long, encoding);
+    
+
+    var result = new Buffer(4 + shortComment.length + longComment.length);
+    result[0] = encoding.encodingByte; // set appropriate encoding byte
+    result.write(comment.language.substr(0,3), 1, 3, 'ascii');
+    
+    shortComment.copy(result, 4);
+    longComment.copy(result, 4+shortComment.length);
+
+    return result;
   }
 
   /** Decodes the popularity object from the given frame buffer.
@@ -260,6 +285,18 @@ internal.encodeString = function(string, encoding) {
   strBuffer.copy(result, encoding.bom.length)
   return result
 }
+
+/** Encodes the string into a buffer with the encoding's BOM and terminates the string with a NULL character.
+ *  The encodingByte won't be written into the buffer as this is format specific.
+ *  
+ * @param string the string to encode
+ * @param encoding{encoding,bom,dbe} the encoding object, which represents the encoding to use
+ *
+ * @return the buffer with the encoded string
+ */
+internal.encodeCString = function(string, encoding) {
+  return internal.encodeString(string+'\0', encoding);
+};
 
 
 /** Returns the offset of the NULL (double-)byte inside a string buffer
