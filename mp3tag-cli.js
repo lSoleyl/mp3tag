@@ -152,6 +152,55 @@ parser.defineTask('export-publisher', {
   cb()
 })
 
+
+parser.defineTask('export-comment-lang', {
+  max_args: 1,
+  type: 'read',
+  arg_display: '[property name]',
+  help_text: 'exports the comment\'s language'
+}, function(tagData, cb) {
+  var property = this.args[0] || 'comment-lang';
+  var buffer = tagData.getFrameBuffer('COMM');
+  exportProperties[property] = buffer ? tagData.decoder.decodeComment(buffer).language : '';
+  cb();
+});
+
+parser.defineTask('export-comment-short', {
+  max_args: 1,
+  type: 'read',
+  arg_display: '[property name]',
+  help_text: 'exports the comment\'s short text'
+}, function(tagData, cb) {
+  var property = this.args[0] || 'comment-short';
+  var buffer = tagData.getFrameBuffer('COMM');
+  exportProperties[property] = buffer ? tagData.decoder.decodeComment(buffer).short : '';
+  cb();
+});
+
+parser.defineTask('export-comment-long', {
+  max_args: 1,
+  type: 'read',
+  arg_display: '[property name]',
+  help_text: 'exports the comment text'
+}, function(tagData, cb) {
+  var property = this.args[0] || 'comment-long';
+  var buffer = tagData.getFrameBuffer('COMM');
+  exportProperties[property] = buffer ? tagData.decoder.decodeComment(buffer).long : '';
+  cb();
+});
+
+parser.defineTask('export-comment', {
+  max_args: 1,
+  type: 'read',
+  arg_display: '[property name]',
+  help_text: 'exports the comment'
+}, function(tagData, cb) {
+  var property = this.args[0] || 'comment';
+  var buffer = tagData.getFrameBuffer('COMM');
+  exportProperties[property] = buffer ? tagData.decoder.decodeComment(buffer) : '';
+  cb();
+});
+
 parser.defineTask('export-format', {
   max_args: 1,
   type: 'read',
@@ -241,6 +290,34 @@ parser.defineTask('set-publisher', {
   cb()
 })
 
+parser.defineTask('set-comment', {
+  max_args: 1,
+  type: 'write',
+  arg_display: '["lang;short;long"]',
+  help_text: 'Set/Clear comment (a semicolon separated string)'
+}, function(tagData, cb) {
+  if (!this.args[0]) {
+    tagData.removeFrame('COMM');
+  } else {
+    var parts = this.args[0].split(';');
+    var comment;
+    if (parts.length === 1) {
+      // special case only long comment
+      comment = {language:'eng', short:'', long:parts[0]};
+    } else if (parts.length === 2) {
+      // only language and long
+      comment = { language: parts[0], short: '', long: parts[1]};
+    } else {
+      // regular comment
+      comment = {language: parts[0], short:parts[1], long:parts[2]};
+    }
+
+    tagData.setFrameBuffer('COMM', tagData.decoder.encodeComment(comment));
+  }
+
+  cb();
+});
+
 
 ///----------------------
 //TODO define other tasks
@@ -253,7 +330,7 @@ parser.defineTask('write', {
   type:'sink',
   arg_display:'[filename]',
   help_text:'Specifies that the changes, made to the tags should be written into filename. If filename is left out, the input file is used.' + 
-  'The filename may not be left out if not filename was specified with --in'
+  'The filename may not be left out if no filename was specified with --in'
 }, function(tagData, cb) {
   var target = this.args[0] || sourceFile
   if (!target)
