@@ -45,6 +45,11 @@ describe('Decoder V3', function() {
             var comment = {language:'eng',short:'asdka"söldka',long:'dalkdölas"äß09ß'};
             endecodeComment(comment).should.be.deep.equal(comment);
         });
+
+        it('("en","","") should be en/-decoded to ("en ","","")', function() {
+            var comment = {language:'en',short:'',long:''};
+            endecodeComment(comment).should.be.deep.equal({language:'en ',short:'',long:''});
+        });
     });
 });
 
@@ -86,6 +91,11 @@ describe('Decoder V4', function() {
         it('should be symmetrical for ("eng","asdka"söldka","dalkdölas"äß09ß@€")', function() {
             var comment = {language:'eng',short:'asdka"söldka',long:'dalkdölas"äß09ß'};
             endecodeComment(comment).should.be.deep.equal(comment);
+        });
+
+        it('("en","","") should be en/-decoded to ("en ","","")', function() {
+            var comment = {language:'en',short:'',long:''};
+            endecodeComment(comment).should.be.deep.equal({language:'en ',short:'',long:''});
         });
     });
 });

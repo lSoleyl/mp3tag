@@ -103,7 +103,7 @@ class Decoder {
 
     var result = new Buffer(4 + shortComment.length + longComment.length);
     result[0] = encoding.encodingByte; // set appropriate encoding byte
-    result.write(comment.language.substr(0,3), 1, 3, 'ascii');
+    result.write(comment.language.substr(0,3).padEnd(3), 1, 3, 'ascii');
     
     shortComment.copy(result, 4);
     longComment.copy(result, 4+shortComment.length);
