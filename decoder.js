@@ -260,7 +260,7 @@ internal.decodeCString = function(decoder, buffer, encodingByte) {
 
   result.pastNullPos = result.nullPos + (encoding.dbe ? 2 : 1)
 
-  var contentslice = buffer.slice(encoding.bom.length, result.nullPos - encoding.bom.length)
+  var contentslice = buffer.slice(encoding.bom.length, result.nullPos)
   
   result.string = cp.fromBuffer(contentslice, encoding.encoding)
   return result
