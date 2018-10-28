@@ -132,6 +132,7 @@ class TagData {
 
     //Padding start position may have changed
     var paddingDelta = pos - this.padding.offset
+    this.dirty = true; // data has probably changed (new frame or removed a frame)
 
     //Move resize padding accordingly
     this.padding.offset  += paddingDelta
@@ -161,9 +162,6 @@ class TagData {
 
     //Realign frames will take care of setting the correct position and adjusting the padding
     this.realignFrames()
-
-    this.dirty = true //Data has changed
-
     return frame
   }
 
