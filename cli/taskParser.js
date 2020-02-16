@@ -10,47 +10,12 @@ function isTask(param) {
   return typeof(param) === 'string' && taskDefinitions[param] !== undefined
 }
 
-class Task {
+class TaskDefinition {
   constructor(key, options, action) {
     this.key = key
     this.options = this.verifyOptions(options)
     this.type = options.type
-    this.args = []
     this.action = action
-  }
-
-  /** Reads this tasks arguments from the given argument list.
-   *  The number of arguments is defined by min_args and max_args.
-   *  Everything, which is not a task keyword itself, can be passed as argument
-   *  to the task.
-   *
-   * @param argv the argument list (excluding the task itself)
-   */
-  readArgs(argv) {
-    //Read min_args amount of arguments
-    while (this.args.length < this.options.min_args) {
-      var param = argv[0]
-      if (isTask(param)) {
-        throw new Error("Not enough arguments found for '" + this.key + "' task")
-      }
-
-      this.args.push(param)
-      argv.shift()
-    }
-
-    //Now read up to max_args optional arguments
-    while(this.args.length < this.options.max_args && !isTask(argv[0]))
-      this.args.push(argv.shift())
-  }
-
-  run(object, callback) {
-    var self = this
-    process.nextTick(() => {
-      if (self.type == 'option' || self.type == 'source' || self.type == 'help')
-        self.action(callback) //Only a completion callback
-      else
-        self.action(object, callback) //Argument and callback
-    })
   }
 
   verifyOptions(options) {
@@ -77,8 +42,9 @@ class Task {
       }
     }
 
-    if (typeof(options.type) !== 'string')
+    if (typeof(options.type) !== 'string') {
       options.type = 'read'
+    }
 
     return options
   }
@@ -105,19 +71,55 @@ class Task {
 
     return '<no description>'
   }
-
 }
 
 
-function getTask(keyword, argv) {
-  if (!taskDefinitions[keyword])
-    throw new Error("Unknown task '" + keyword + "' in command line arguments")
-  
-  var task = taskDefinitions[keyword]
-  task.readArgs(argv)
+class Task extends TaskDefinition {
+  constructor(definition) {
+    super(definition.key, definition.options, definition.action);
+    this.args = [];
+  }
 
-  return task
+  /** Executes this task with the current arguments
+   */
+  run(object, callback) {
+    var self = this
+    process.nextTick(() => {
+      if (self.type == 'option' || self.type == 'source' || self.type == 'help')
+        self.action(callback) //Only a completion callback
+      else
+        self.action(object, callback) //Argument and callback
+    })
+  }
+ 
+
+  /** Reads this tasks arguments from the given argument list.
+   *  The number of arguments is defined by min_args and max_args.
+   *  Everything, which is not a task keyword itself, can be passed as argument
+   *  to the task.
+   *
+   * @param argv the argument list (excluding the task itself)
+   */
+  readArgs(argv) {
+    //Read min_args amount of arguments
+    while (this.args.length < this.options.min_args) {
+      var param = argv[0]
+      if (isTask(param)) {
+        throw new Error("Not enough arguments found for '" + this.key + "' task")
+      }
+
+      this.args.push(param)
+      argv.shift()
+    }
+
+    //Now read up to max_args optional arguments
+    while(this.args.length < this.options.max_args && !isTask(argv[0])) {
+      this.args.push(argv.shift())
+    }
+  }
 }
+
+
 
 
 
@@ -135,7 +137,7 @@ var module = module.exports = {}
  *                 options don't receive and don't return anything
  */
 module.defineTask = function(key, options, action) {
-  taskDefinitions['--'+key] = new Task(key, options, action)
+  taskDefinitions['--'+key] = new TaskDefinition(key, options, action)
 }
 
 /** Run method, which should be used to start the process
@@ -146,7 +148,7 @@ module.run = function(argv, callback) {
   while(argv.length > 0) {
     var key = argv.shift()
     if (taskDefinitions[key] !== undefined) {
-      var task = taskDefinitions[key]
+      var task = new Task(taskDefinitions[key]);
       task.readArgs(argv)
       tasks.push(task)
     } else {

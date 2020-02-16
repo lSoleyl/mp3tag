@@ -12,7 +12,6 @@ const encoding = require('./encoding')
 
 //Classes
 const File = require('./file')
-const Data = require('./data')
 const TagData = require('./tagdata')
 const Frame = require('./frame')
 

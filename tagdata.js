@@ -32,7 +32,7 @@ class TagData {
     this.hasFooter = version.major >= 4 && (flags & 0x10) != 0;
   }
 
-  /** This simple getter searches the frames array for a frame with the given id.
+  /** This simple getter searches the frames array for the first frame with the given id.
    *
    * @param id the frame's id
    *
@@ -42,20 +42,46 @@ class TagData {
     return _.find(this.frames, function(frame) { return frame.id == id })
   }
 
+  /** This simple getter returns all frames for the given id or an empty array
+   *  if no such frame exists. There are cases where the frame id isn't actually
+   *  a unique Identifier and multiple frames with the same id exist.
+   *
+   * @param id the frame's id
+   *
+   * @return the list of frames with that id
+   */
+  getFrames(id) {
+    return _.filter(this.frames, function(frame) { return frame.id == id })
+  }
+
   /** Returns the frame buffer of the frame, which identified by the given id.
    *  If no such frame is available, undefined is returned. The padding frame is not part of 
    *  of the frames, and can't be retrieved by this method.
    *
-   * @param id the frame's id to get the buffer from.
+   * @param id the frame's id to get the buffer for.
    *
    * @return the frame's buffer, or undefined if the frame does not exist.
    */
   getFrameBuffer(id) {
     var frame = this.getFrame(id)
-    if (frame)
+    if (frame) {
       return frame.data.toBuffer()
+    }
     
     return undefined
+  }
+
+  /** Returns the frame buffer of the frame, which identified by the given id.
+   *  Since there are cases in which a file contains multiple frames with the same id,
+   *  (in most cases custom frames) this method can be used to retrieve all buffers 
+   *  for these frames. The buffers are returned as array.
+   *
+   * @param id the frame's id to get the buffer for.
+   *
+   * @return an array of buffers, on for each frame found with the given id
+   */
+  getFrameBuffers(id) {
+    return _.map(this.getFrames(id), function(frame) { return frame.data.toBuffer(); });
   }
 
   /** Inverse to getFrameBuffer.
@@ -70,7 +96,7 @@ class TagData {
     this.reallocateFrame(id, buffer)
   }
 
-  /** Completely removes the given frame. 
+  /** Completely removes the given frame(s). 
    *  If the frame doesn't exist, it does nothing.
    *  It doesn't prevent the deletion of required frames.
    *

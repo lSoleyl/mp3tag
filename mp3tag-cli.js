@@ -201,6 +201,28 @@ parser.defineTask('export-comment', {
   cb();
 });
 
+parser.defineTask('export-text-frame', {
+  min_args: 1,
+  max_args: 2,
+  type: 'read',
+  arg_display: '[frame id] [property name]',
+  help_text: 'Display the text content of a frame specified by id'
+}, function(tagData, cb) {
+  var frameId = this.args[0];
+  var property = this.args[1] || frameId;
+  // could be multiple frames with the same id
+  var frameStrings = _.map(tagData.getFrameBuffers(frameId), function(buffer) { return tagData.decoder.decodeString(buffer); });
+
+  if (frameStrings.length == 0) {
+    exportProperties[property] = null;
+  } else if (frameStrings.length == 1) {
+    exportProperties[property] = frameStrings[0];
+  } else {
+    exportProperties[property] = frameStrings;
+  }
+  cb();
+});
+
 parser.defineTask('export-format', {
   max_args: 1,
   type: 'read',
@@ -315,6 +337,18 @@ parser.defineTask('set-comment', {
     tagData.setFrameBuffer('COMM', tagData.decoder.encodeComment(comment));
   }
 
+  cb();
+});
+
+
+parser.defineTask('delete-frame', {
+  args: 1,
+  type: 'write',
+  arg_display: '[frame id]',
+  help_text: 'delete the frame(s) with the given frame id'
+}, function(tagData, cb) {
+  var frameId = this.args[0];
+  tagData.removeFrame(frameId);
   cb();
 });
 
