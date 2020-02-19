@@ -5,30 +5,30 @@
  * This class makes the assumption, that each tag id is actually unique for the whole tag.
  * This assumtion affects the methods getFrameBuffer/getFrameData/setFrameBuffer
  */
-const async = require("async")
-const _ = require("lodash")
+const async = require("async");
+const _ = require("lodash");
 
-const encoding = require('./encoding')
+const encoding = require('./encoding');
 
-const Data = require('./data')
-const DataSource = require('./dataSource')
-const File = require('./file')
-const Frame = require('./frame')
-const Decoder = require('./decoder')
+const Data = require('./data');
+const DataSource = require('./dataSource');
+const File = require('./file');
+const Frame = require('./frame');
+const Decoder = require('./decoder');
 
 
 class TagData {
   constructor(file, version, flags, size, frames, padding, audioData) {
-    this.file = file        //File read from
-    this.version = version  //version tuple {'major','minor'}
-    this.flags = flags      //flags field from the header
-    this.size = size        //header size with frames and padding/footer = starting offset of audiodata
-    this.frames = frames    //list of filtered frames (no zero size frames and no padding frames)
-    this.padding = padding  //padding bytes {'offset', 'size'}
-    this.audioData = audioData || new DataSource(file, size)
-    this.rewrite = false    //true, if adding new frames has depleted all padding and file must be rewritten
-    this.dirty = false      //true if any of the tag data has been changed since creation if the file isn't dirty saving into the same file is a noop
-    this.decoder = new Decoder(version)
+    this.file = file;        //File read from
+    this.version = version;  //version tuple {'major','minor'}
+    this.flags = flags;      //flags field from the header
+    this.size = size ;       //header size with frames and padding/footer = starting offset of audiodata
+    this.frames = frames;    //list of filtered frames (no zero size frames and no padding frames)
+    this.padding = padding;  //padding bytes {'offset', 'size'}
+    this.audioData = audioData || new DataSource(file, size);
+    this.rewrite = false;    //true, if adding new frames has depleted all padding and file must be rewritten
+    this.dirty = false;      //true if any of the tag data has been changed since creation if the file isn't dirty saving into the same file is a noop
+    this.decoder = new Decoder(version);
     this.hasFooter = version.major >= 4 && (flags & 0x10) != 0;
   }
 
@@ -39,7 +39,7 @@ class TagData {
    * @return either the frame or undefined if not found
    */
   getFrame(id) {
-    return _.find(this.frames, function(frame) { return frame.id == id })
+    return _.find(this.frames, (frame) => { return frame.id == id; });
   }
 
   /** This simple getter returns all frames for the given id or an empty array
@@ -51,7 +51,7 @@ class TagData {
    * @return the list of frames with that id
    */
   getFrames(id) {
-    return _.filter(this.frames, function(frame) { return frame.id == id })
+    return _.filter(this.frames, (frame) => { return frame.id == id; });
   }
 
   /** Returns the frame buffer of the frame, which identified by the given id.
@@ -63,12 +63,12 @@ class TagData {
    * @return the frame's buffer, or undefined if the frame does not exist.
    */
   getFrameBuffer(id) {
-    var frame = this.getFrame(id)
+    const frame = this.getFrame(id);
     if (frame) {
-      return frame.data.toBuffer()
+      return frame.data.toBuffer();
     }
     
-    return undefined
+    return undefined;
   }
 
   /** Returns the frame buffer of the frame, which identified by the given id.
@@ -81,7 +81,7 @@ class TagData {
    * @return an array of buffers, on for each frame found with the given id
    */
   getFrameBuffers(id) {
-    return _.map(this.getFrames(id), function(frame) { return frame.data.toBuffer(); });
+    return _.map(this.getFrames(id), (frame) => { return frame.data.toBuffer(); });
   }
 
   /** Inverse to getFrameBuffer.
@@ -93,7 +93,7 @@ class TagData {
    * @param buffer the buffer to set
    */
   setFrameBuffer(id, buffer) {
-    this.reallocateFrame(id, buffer)
+    this.reallocateFrame(id, buffer);
   }
 
   /** Completely removes the given frame(s). 
@@ -103,7 +103,7 @@ class TagData {
    * @param id the id of the frame to delete
    */
   removeFrame(id) {
-    _.remove(this.frames, function(frame) { return frame.id == id })
+    _.remove(this.frames, (frame) => { return frame.id == id; });
     this.realignFrames() //Realign all frames after a frame got deleted
   }
 
@@ -117,28 +117,30 @@ class TagData {
    * @return the reallocated frame
    */
   reallocateFrame(id, buffer) {
-    var frame = this.getFrame(id)
+    const frame = this.getFrame(id);
 
-    //Allocate if frame doesn't exist  
-    if (!frame)
-      return this.allocateFrame(id, buffer)
-
-    //No change in data necessary, setting same content
-    if (frame.data.toBuffer().equals(buffer))
-      return frame
-
-    //Maybe no resizing necessary?
-    var size = frame.size
-    frame.setBuffer(buffer)
-
-    if (frame.size != size) {
-      //Take care of realigning frames, adjusting padding and the tag's size
-      this.realignFrames()
+    // Allocate if frame doesn't exist  
+    if (!frame) {
+      return this.allocateFrame(id, buffer);
     }
 
-    this.dirty = true //Change in data happened
+    // No change in data necessary, setting same content
+    if (frame.data.toBuffer().equals(buffer)) {
+      return frame;
+    }
 
-    return frame
+    // Maybe no resizing necessary?
+    const size = frame.size;
+    frame.setBuffer(buffer);
+
+    if (frame.size != size) {
+      // Take care of realigning frames, adjusting padding and the tag's size
+      this.realignFrames();
+    }
+
+    this.dirty = true; // Change in data happened
+
+    return frame;
   }
 
   /** This method will iterate through all frames and adjust their `pos` according to
@@ -146,28 +148,28 @@ class TagData {
    *  adjusted if necessary.
    */
   realignFrames() {
-    var pos = TagData.tagHeaderSize //Starting position
-    for(var i = 0; i < this.frames.length; ++i) {
-      var frame = this.frames[i]
-      pos += Frame.headerSize //move position to start of data
+    let pos = TagData.TAG_HEADER_SIZE; // Starting position
+    for (let i = 0; i < this.frames.length; ++i) {
+      const frame = this.frames[i];
+      pos += Frame.headerSize; // move position to start of data
       
-      //Move frame to correct position
-      frame.pos = pos
-      pos += frame.size
+      // Move frame to correct position
+      frame.pos = pos;
+      pos += frame.size;
     }
 
     //Padding start position may have changed
-    var paddingDelta = pos - this.padding.offset
+    const paddingDelta = pos - this.padding.offset;
     this.dirty = true; // data has probably changed (new frame or removed a frame)
 
     //Move resize padding accordingly
-    this.padding.offset  += paddingDelta
-    this.padding.size -= paddingDelta
+    this.padding.offset += paddingDelta;
+    this.padding.size -= paddingDelta;
 
-    if (this.padding.size < 0) { //No padding left
-      this.size += this.padding.size*(-1) //Tag's size has just increased 
-      this.rewrite = true //Audiodata must be moved
-      this.padding.size = 0
+    if (this.padding.size < 0) { // No padding left
+      this.size += this.padding.size*(-1); // Tag's size has just increased 
+      this.rewrite = true; //Audiodata must be moved
+      this.padding.size = 0;
     }
   }
 
@@ -182,13 +184,13 @@ class TagData {
    * @return the newly allocated frame
    */
   allocateFrame(id, buffer) {
-    var frame = Frame.allocate(id, buffer)
+    const frame = Frame.allocate(id, buffer);
 
-    this.frames.push(frame) //Insert as last frame
+    this.frames.push(frame); // Insert as last frame
 
-    //Realign frames will take care of setting the correct position and adjusting the padding
-    this.realignFrames()
-    return frame
+    // Realign frames will take care of setting the correct position and adjusting the padding
+    this.realignFrames();
+    return frame;
   }
 
   /** This method will just write back the updated frame data into the file itself.
@@ -200,10 +202,11 @@ class TagData {
    * @param callback(err,res) will be called upon completion
    */
   save(callback) {
-    if (!this.file) 
-      return callback(new Error("This tag data has no source file!")) //Is true for generated headers
+    if (!this.file) {
+      return callback(new Error("This tag data has no source file!")); // Is true for generated headers
+    }
 
-    this.writeToFile(this.file.name, callback)
+    this.writeToFile(this.file.name, callback);
   }
 
   /** Checks whether the footer should better be disabled based on a used padding
@@ -212,9 +215,9 @@ class TagData {
     //Footer processing (we don't want to write the footer if we have included padding)
     if (this.hasFooter && this.padding.size > 0) {
       // remove footer, add it's size to the padding and disable the flag
-      this.hasFooter = false
-      this.padding.size += TagData.tagFooterSize
-      this.flags &= ~0x10
+      this.hasFooter = false;
+      this.padding.size += TagData.TAG_FOOTER_SIZE;
+      this.flags &= ~0x10;
     }
   }
 
@@ -222,12 +225,13 @@ class TagData {
    *  This value is equal to the size value encoded in the tag header/footer
    */
   getContentSize() {
-    var size = this.size - TagData.tagHeaderSize
+    let size = this.size - TagData.TAG_HEADER_SIZE;
 
-    if (this.hasFooter)
-      size -= TagData.tagFooterSize
+    if (this.hasFooter) {
+      size -= TagData.TAG_FOOTER_SIZE;
+    }
 
-    return size
+    return size;
   }
 
   /** This method will write the id3 tag header into the given file. At the correct offset.
@@ -239,18 +243,18 @@ class TagData {
   writeTagHeader(file, callback) {
     this.checkFooter(); //check whether have to disable the footer to set the correct flags
 
-    var header = new Buffer(TagData.tagHeaderSize)  
+    const header = Buffer.alloc(TagData.TAG_HEADER_SIZE);
 
-    header.asciiWrite("ID3") //Write marker
-    header.writeUInt8(this.version.major,3)
-    header.writeUInt8(this.version.minor,4)
-    header.writeUInt8(this.flags, 5)
+    header.asciiWrite("ID3"); //Write marker
+    header.writeUInt8(this.version.major,3);
+    header.writeUInt8(this.version.minor,4);
+    header.writeUInt8(this.flags, 5);
 
     //TagHeader size must be subtracted from the actual size
-    header.writeUInt32BE(encoding.encodeUInt7Bit(this.getContentSize()), 6)
+    header.writeUInt32BE(encoding.encodeUInt7Bit(this.getContentSize()), 6);
 
     //Now write the header
-    file.write(header, callback)
+    file.write(header, callback);
   }
 
   /** This method will write the id3 tag footer if the file still has a footer
@@ -261,21 +265,22 @@ class TagData {
   writeTagFooter(file, callback) {
     this.checkFooter();
 
-    if (!this.hasFooter)
+    if (!this.hasFooter) {
       return callback(null);
+    }
 
-    var footer = new Buffer(TagData.tagFooterSize)  
+    const footer = Buffer.alloc(TagData.TAG_FOOTER_SIZE);
 
-    footer.asciiWrite("3DI") //Write marker (basically ID3 reversed)
-    footer.writeUInt8(this.version.major,3)
-    footer.writeUInt8(this.version.minor,4)
-    footer.writeUInt8(this.flags, 5)
+    footer.asciiWrite("3DI"); // Write marker (basically ID3 reversed)
+    footer.writeUInt8(this.version.major,3);
+    footer.writeUInt8(this.version.minor,4);
+    footer.writeUInt8(this.flags, 5);
 
     //TagHeader size must be subtracted from the actual size
-    footer.writeUInt32BE(encoding.encodeUInt7Bit(this.getContentSize()), 6)
+    footer.writeUInt32BE(encoding.encodeUInt7Bit(this.getContentSize()), 6);
 
     //Now write the footer
-    file.write(footer, callback)
+    file.write(footer, callback);
   }
 
   /** This method will write the content into a file (overwriting existing files) and 
@@ -293,8 +298,8 @@ class TagData {
    * @param callback(err, res) will be called upon completion
    */
   writeToFile(path, callback) {
-    var self = this
-    var sameFile = (self.audioData.source.name === path)
+    const self = this;
+    const sameFile = (self.audioData.source.name === path);
 
     //No change & same file -> no write necessary
     if (sameFile && !this.dirty) {
@@ -309,86 +314,93 @@ class TagData {
      *           the provided file. the innerCB is invoked if the audio data has been successfully written.
      */ 
     function withAudioFN(cb) {
-      //We don't have to write audio if a rewrite isn't necessary and we write into the same file
+      // We don't have to write audio if a rewrite isn't necessary and we write into the same file
       if (sameFile && !self.rewrite) {
-        //Basically return a NOP
-        process.nextTick(function() { cb(null, function(file, innerCB) { process.nextTick(innerCB) }) })
-      } else { //Otherwise, writing audio is necessary
-        //We have to load the audioData into a buffer, before writing, or else we will overwrite it.
-        self.audioData.toData(function(err, data) {
-          if (err)
-            return cb(err)
+        // Basically return a NOP
+        process.nextTick(() => { cb(null, (file, innerCB) => { process.nextTick(innerCB); }); });
+      } else { // Otherwise, writing audio is necessary
+        // We have to load the audioData into a buffer, before writing, or else we will overwrite it.
+        self.audioData.toData((err, data) => {
+          if (err) {
+            return cb(err);
+          }
 
-          cb(null, function(file, innerCB) {
-            file.write(data.toBuffer(), innerCB)
-          })
-        })
+          cb(null, (file, innerCB) => {
+            file.write(data.toBuffer(), innerCB);
+          });
+        });
       }
     }
 
-    //Load audio data if necessary and bind to audioFN
+    // Load audio data if necessary and bind to audioFN
     withAudioFN(function(err, audioFN) {
-      //Open target file for writing
+      // Open target file for writing
 
-      var fmode = "w"
+      let fmode = "w";
       if (sameFile && !self.rewrite) {
-        fmode = "a" //Don't clear file on open
+        fmode = "a"; // Don't clear file on open
       }
 
 
       File.open(path, fmode, function(err, file) {
-        if (err)
-          return callback(err)
+        if (err) {
+          return callback(err);
+        }
 
         self.writeTagHeader(file, function(err) {
-          if (err)
-            return callback(err)
+          if (err) {
+            return callback(err);
+          }
 
-          //Write frames
+          // Write frames
           async.eachSeries(self.frames, 
             function(frame, cb) { frame.write(file, cb) }, 
             function(err) {
-            if (err)
-              return callback(err)
+            if (err) {
+              return callback(err);
+            }
 
-            //Write padding
-            var padding = new Buffer(self.padding.size)
-            padding.fill(0x00) //Fill generated buffer with zero bytes
+            // Write padding
+            const padding = Buffer.alloc(self.padding.size);
+            padding.fill(0x00); // Fill generated buffer with zero bytes
             file.write(padding, function(err) {
-              if (err)
-                return callback(err)
+              if (err) {
+                return callback(err);
+              }
 
               self.writeTagFooter(file, function(err) {
-                //Now write the audio data (if needed) and close the file
+                // Now write the audio data (if needed) and close the file
                 audioFN(file, function(err) {
-                  file.close()
-                  if (err)
-                    return callback(err)
+                  file.close();
+                  if (err) {
+                    return callback(err);
+                  }
 
-                  if (sameFile) //Clear dirty flag if we have just updated the source file
-                    self.dirty = false
+                  if (sameFile) { // Clear dirty flag if we have just updated the source file
+                    self.dirty = false;
+                  }
 
-                  process.nextTick(callback)
-                })
-              })
-            })
-          })
-        })
-      })
+                  process.nextTick(callback);
+                });
+              });
+            });
+          });
+        });
+      });
 
-    })
+    });
   }
 }
 
-//Constant size of ID3Tag header/footer size
-TagData.tagHeaderSize = 10 
-TagData.tagFooterSize = 10
+// Constant size of ID3Tag header/footer size
+TagData.TAG_HEADER_SIZE = 10;
+TagData.TAG_FOOTER_SIZE = 10;
 
 /** This function creates an empty TagData structure. 
  */
 TagData.empty = function() {                                             //Empty padding starts directly after header
- return new TagData(undefined, {major:3, minor:0}, 0, TagData.tagHeaderSize, [], {offset:TagData.tagHeaderSize, size:0}, new Data(new Buffer(0)))
-}
+  return new TagData(undefined, {major:3, minor:0}, 0, TagData.TAG_HEADER_SIZE, [], {offset:TagData.TAG_HEADER_SIZE, size:0}, new Data(Buffer.alloc(0)));
+};
 
-//export class
-module.exports = TagData
+// export class
+module.exports = TagData;

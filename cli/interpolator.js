@@ -1,18 +1,18 @@
 /** This module exports the interpolator class, which can be used to interpolate parameter strings
  */
 
-const _ = require('lodash')
+const _ = require('lodash');
 
 //Map of varname -> interpolation function(itp) -> promise[string]
 const variables = {
   'source':function(itp)  {
-    return Promise.resolve(itp.source)
+    return Promise.resolve(itp.source);
   }
-}
+};
 
 //Lets use $ for now.. I know this isn't optimal for linux though...
-const varPrefix = '$'
-const varPostfix = ''
+const varPrefix = '$';
+const varPostfix = '';
 
 
 class Interpolator {
@@ -20,9 +20,9 @@ class Interpolator {
    *  a file as parameter
    */
   constructor(sourceFile, tagData) {
-    this.source = sourceFile
-    this.tagData = tagData
-    this.varCache = {} //cached variable values to only calculate them once
+    this.source = sourceFile;
+    this.tagData = tagData;
+    this.varCache = {}; // cached variable values to only calculate them once
   }
 
   /** Should be called to interpolate the given string and replace all variables in it
@@ -32,21 +32,22 @@ class Interpolator {
    * @return a promise, which resolves to the interpolated string
    */
   interpolate(rawString) {
-    var result = rawString
+    let result = rawString;
 
-    if (!result)
-      return Promise.resolve(result)
+    if (!result) {
+      return Promise.resolve(result);
+    }
 
     return this.loadVariables(rawString).then(() => {
       //All variables are loaded
 
       _.each(variables, (ifn, varName) => {
-        var fullVarName = varPrefix + varName + varPostfix
-        result = result.replace(fullVarName, this.varCache[varName])
-      })
+        const fullVarName = varPrefix + varName + varPostfix;
+        result = result.replace(fullVarName, this.varCache[varName]);
+      });
 
-      return Promise.resolve(result)
-    })
+      return Promise.resolve(result);
+    });
   }
 
   /** Loads all occuring variables into varcache
@@ -55,23 +56,21 @@ class Interpolator {
    *         the promise gets rejected if one of the interpolation functions fails
    */
   loadVariables(rawString) {
-    var variablePromises = []
+    const variablePromises = [];
     _.each(variables, (interpolateFn, varName) => {
-      var fullVarName = varPrefix + varName + varPostfix
-      if (rawString.indexOf(fullVarName) != -1) {
+      const fullVarName = varPrefix + varName + varPostfix;
+      if (rawString.indexOf(fullVarName) !== -1) {
         if (!this.varCache[varName]) {
           variablePromises.push(interpolateFn(this).then((value) => { 
-            this.varCache[varName] = value
-            return Promise.resolve(value)
-          }))
+            this.varCache[varName] = value;
+            return Promise.resolve(value);
+          }));
         }
       }
-    })
+    });
 
-    return Promise.all(variablePromises)
+    return Promise.all(variablePromises);
   }
-
-
 }
 
-module.exports = Interpolator
+module.exports = Interpolator;

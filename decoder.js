@@ -2,12 +2,12 @@
  *  framedecoding and -encoding method based on the tags version.
  */ 
 
-const util = require('util')
+const util = require('util');
 
-const cp = require('./cp')
-const _ = require('lodash')
+const cp = require('./cp');
+const _ = require('lodash');
 
-const Data = require('./data')
+const Data = require('./data');
 
 /** List of unicode encodings supported as text encoding
  */
@@ -16,14 +16,14 @@ const UCEncodings = [
   {encoding:'UTF-16BE', bom:[0xFE, 0xFF], dbe:true},
   {encoding:'UTF-8',    bom:[0xEF, 0xBB, 0xBF], dbe:false},
   {encoding:'UTF-8',    bom:[], dbe:false} //Empty bom sets the default codepage
-]
+];
 
 /** Defines the default encoding for the encodeString method
  */
 const DEFAULT_ENCODINGS = {
   3: _.defaults({encodingByte:0x01}, UCEncodings[0]),  //UTF-16LE with bom
   4: _.defaults({encodingByte:0x03}, UCEncodings[3])   //UTF-8 without bom
-}
+};
 
 
 /** Decoder class, used to de- and encode frames
@@ -32,7 +32,7 @@ class Decoder {
   /** Creates a new decoder for the given tag version
    */ 
   constructor(version) {
-    this.version = version.major
+    this.version = version.major;
   }
 
   /** This method decodes the given buffer into a js string.
@@ -43,14 +43,14 @@ class Decoder {
    */ 
   decodeString(buffer) {
     if (!(buffer instanceof Buffer)) {
-      throw new Error("Expected buffer, got: " + typeof(buffer) + " - " + util.inspect(buffer, {showHidden:true}))
+      throw new Error(`Expected buffer, got: ${typeof(buffer)} - ${util.inspect(buffer, {showHidden:true})}`);
     }
 
-    var data = buffer.slice(1)
+    var data = buffer.slice(1);
     try {
-      return internal.decodeString(this, data, buffer[0])
+      return internal.decodeString(this, data, buffer[0]);
     } catch(e) {
-      throw new Error("Unsupported buffer encoding: " + buffer.inspect())
+      throw new Error(`Unsupported buffer encoding: ${buffer.inspect()}`);
     }
   }
 
@@ -62,30 +62,30 @@ class Decoder {
    */
   decodeComment(buffer) {
     if (!(buffer instanceof Buffer)) {
-      throw new Error("Expected buffer, got: " + typeof(buffer) + " - " + util.inspect(buffer, {showHidden:true}))
+      throw new Error(`Expected buffer, got: ${typeof(buffer)} - ${util.inspect(buffer, {showHidden:true})}`);
     }
 
 
-    var encodingByte = buffer[0]
-    var language = buffer.toString('ascii', 1, 4) // the language code has acutally 3 characters!
-    var data = buffer.slice(4)
+    const encodingByte = buffer[0];
+    const language = buffer.toString('ascii', 1, 4); // the language code has acutally 3 characters!
+    const data = buffer.slice(4);
     
     try {
-      this.getBufferEncoding(data, encodingByte)
+      this.getBufferEncoding(data, encodingByte);
     } catch (e) {
-      throw new Error("Unsupported buffer encoding: " + buffer.inspect())
+      throw new Error(`Unsupported buffer encoding: ${buffer.inspect()}`);
     }
 
-    var cData = internal.decodeCString(this, data, encodingByte) //TODO try catch other error
+    const cData = internal.decodeCString(this, data, encodingByte); //TODO try catch other error
 
-    var shortComment = cData.string
-    var longComment = internal.decodeString(this, data.slice(cData.pastNullPos))
+    const shortComment = cData.string;
+    const longComment = internal.decodeString(this, data.slice(cData.pastNullPos));
 
     return {
       language:language,
       short:shortComment,
       long:longComment
-    }
+    };
   }
 
   /** Encodes the given comment object back into a buffer
@@ -95,13 +95,13 @@ class Decoder {
    * @return the encoded buffer
    */
   encodeComment(comment) {
-    var encoding = DEFAULT_ENCODINGS[this.version];
+    const encoding = DEFAULT_ENCODINGS[this.version];
 
-    var shortComment = internal.encodeCString(comment.short, encoding);
-    var longComment = internal.encodeString(comment.long, encoding);
+    const shortComment = internal.encodeCString(comment.short, encoding);
+    const longComment = internal.encodeString(comment.long, encoding);
     
 
-    var result = new Buffer(4 + shortComment.length + longComment.length);
+    const result = Buffer.alloc(4 + shortComment.length + longComment.length);
     result[0] = encoding.encodingByte; // set appropriate encoding byte
     result.write(comment.language.substr(0,3).padEnd(3), 1, 3, 'ascii');
     
@@ -119,10 +119,10 @@ class Decoder {
    */
   decodePopularity(buffer) { 
                                       //v-- no unicode support for email
-    var email = internal.decodeCString(this, buffer, 0x00)
-    var rating = buffer[email.pastNullPos]
-    var offset = email.pastNullPos + 1
-    var played = internal.decodeNumberBE(buffer, offset, buffer.length - offset)
+    const email = internal.decodeCString(this, buffer, 0x00);
+    const rating = buffer[email.pastNullPos];
+    const offset = email.pastNullPos + 1;
+    const played = internal.decodeNumberBE(buffer, offset, buffer.length - offset);
 
     return {
       email:email.string,
@@ -133,26 +133,26 @@ class Decoder {
 
   decodePicture(buffer) {
     if (!(buffer instanceof Buffer)) {
-      throw new Error("Expected buffer, got: " + typeof(buffer) + " - " + util.inspect(buffer, {showHidden:true}))
+      throw new Error(`Expected buffer, got: ${typeof(buffer)} - ${util.inspect(buffer, {showHidden:true})}`);
     }
 
-    var encodingByte = buffer[0]
+    const encodingByte = buffer[0];
 
-    var dataBuffer = buffer.slice(1)         //v-- MIME will always be ISO-8895-1
-    var mimeData = internal.decodeCString(this, dataBuffer, 0x00)
-    var mimeType = mimeData.string
-    var pictureType = dataBuffer[mimeData.pastNullPos]
-    var descriptionBuffer = dataBuffer.slice(mimeData.pastNullPos + 1)
-    var descData = internal.decodeCString(this, descriptionBuffer, encodingByte)
-    var description = descData.string
-    var pictureData = descriptionBuffer.slice(descData.pastNullPos)
+    const dataBuffer = buffer.slice(1);         //v-- MIME will always be ISO-8895-1
+    const mimeData = internal.decodeCString(this, dataBuffer, 0x00);
+    const mimeType = mimeData.string;
+    const pictureType = dataBuffer[mimeData.pastNullPos];
+    const descriptionBuffer = dataBuffer.slice(mimeData.pastNullPos + 1);
+    const descData = internal.decodeCString(this, descriptionBuffer, encodingByte);
+    const description = descData.string;
+    const pictureData = descriptionBuffer.slice(descData.pastNullPos);
 
     return {
       mimeType: mimeType,      //String
       pictureType: pictureType,//Integer
       description: description,//String
       pictureData: new Data(pictureData) //BufferData
-    }
+    };
   }
 
   /** Returns the encoding for the given buffer and encodingByte
@@ -166,32 +166,37 @@ class Decoder {
    *         buffer encoding
    */
   getBufferEncoding(buffer, encodingByte) {
-    if (encodingByte === undefined)
-      encodingByte = 0x01 //Default is unicode if not passed
+    if (encodingByte === undefined) {
+      encodingByte = 0x01; // Default is unicode if not passed
+    }
 
-    if (encodingByte === 0x00) //ISO-8895-1 encoding
-      return {encoding:'ISO-8895-1', bom:[], dbe:false}
+    if (encodingByte === 0x00) { // ISO-8895-1 encoding
+      return {encoding:'ISO-8895-1', bom:[], dbe:false};
+    }
 
-    if (encodingByte === 0x01) { //UC (search for BOM and look up)
-      return _.find(UCEncodings, function(encoding) {
-        for(var c = 0; c < encoding.bom.length; ++c) {
-          if (buffer[c] !== encoding.bom[c]) 
-            return false
+    if (encodingByte === 0x01) { // UC (search for BOM and look up)
+      return _.find(UCEncodings, (encoding) => {
+        for (let c = 0; c < encoding.bom.length; ++c) {
+          if (buffer[c] !== encoding.bom[c]) {
+            return false;
+          }
         }
 
-        return true
-      })
+        return true;
+      });
     }
 
     if (this.version >= 4) { //New encodings added with 2.4
-      if (encodingByte === 0x02)
-        return {encoding:'UTF-16BE', bom:[], dbe:true} //UTF-16BE without BOM
+      if (encodingByte === 0x02) {
+        return {encoding:'UTF-16BE', bom:[], dbe:true}; // UTF-16BE without BOM
+      }
 
-      if (encodingByte === 0x03)
-        return {encoding:'UTF-8', bom:[], dbe:false}
+      if (encodingByte === 0x03) {
+        return {encoding:'UTF-8', bom:[], dbe:false};
+      }
     }
 
-    throw new Error("Unknown encoding byte: '" + encodingByte + "'")
+    throw new Error(`Unknown encoding byte: '${encodingByte}'`);
   }
 
 
@@ -203,16 +208,17 @@ class Decoder {
    * @return the encoded buffer
    */
   encodeString(string) {
-    if (!(typeof string == "string"))
-        throw new Error("Expected string, got: " + typeof(string) + " - " + util.inspect(string, {showHidden:true}))
+    if (typeof(string) !== "string") {
+        throw new Error(`Expected string, got: ${typeof(string)} - ${util.inspect(string, {showHidden:true})}`);
+    }
 
-      var encoding = DEFAULT_ENCODINGS[this.version];
-      var bomBuf = internal.encodeString(string, encoding)
+      const encoding = DEFAULT_ENCODINGS[this.version];
+      const bomBuf = internal.encodeString(string, encoding);
 
-      var result = new Buffer(bomBuf.length+1)
-      result[0] = encoding.encodingByte //set appropriate encoding byte
-      bomBuf.copy(result,1)
-      return result
+      const result = Buffer.alloc(bomBuf.length+1);
+      result[0] = encoding.encodingByte; //set appropriate encoding byte
+      bomBuf.copy(result, 1);
+      return result;
   }
 }
 
@@ -223,7 +229,7 @@ class Decoder {
 //  not implemented as method to not overload the decoder's interface
 ////
 
-var internal = {}
+const internal = {};
 
 
 /** Same as decodeCString, but this string isn't zero terminated. The whole
@@ -236,9 +242,9 @@ var internal = {}
  * @return decoded string
  */
 internal.decodeString = function(decoder, buffer, encodingByte) {
-  var encoding = decoder.getBufferEncoding(buffer, encodingByte)
-  return cp.fromBuffer(buffer.slice(encoding.bom.length), encoding.encoding)
-}
+  const encoding = decoder.getBufferEncoding(buffer, encodingByte);
+  return cp.fromBuffer(buffer.slice(encoding.bom.length), encoding.encoding);
+};
 
 
 /** Receives a zero terminated buffer to decode from and the encoding byte
@@ -250,21 +256,22 @@ internal.decodeString = function(decoder, buffer, encodingByte) {
  * @return returns {string,nullPos,pastNullPos}
  */
 internal.decodeCString = function(decoder, buffer, encodingByte) {
-  var encoding = decoder.getBufferEncoding(buffer, encodingByte)
+  const encoding = decoder.getBufferEncoding(buffer, encodingByte);
 
-  var result = {}
-  result.nullPos = internal.getStringEndPos(buffer, encoding.dbe)
+  const result = {};
+  result.nullPos = internal.getStringEndPos(buffer, encoding.dbe);
 
-  if (result.nullPos == -1)
-    throw new Error("Expected NULL terminated string, missing NULL byte(s), with encoding: " + encoding.encoding)
+  if (result.nullPos === -1) {
+    throw new Error("Expected NULL terminated string, missing NULL byte(s), with encoding: " + encoding.encoding);
+  }
 
-  result.pastNullPos = result.nullPos + (encoding.dbe ? 2 : 1)
+  result.pastNullPos = result.nullPos + (encoding.dbe ? 2 : 1);
 
-  var contentslice = buffer.slice(encoding.bom.length, result.nullPos)
+  const contentSlice = buffer.slice(encoding.bom.length, result.nullPos);
   
-  result.string = cp.fromBuffer(contentslice, encoding.encoding)
-  return result
-}
+  result.string = cp.fromBuffer(contentSlice, encoding.encoding);
+  return result;
+};
 
 
 /** Encodes the string into a buffer with the encoding's BOM.
@@ -276,15 +283,16 @@ internal.decodeCString = function(decoder, buffer, encodingByte) {
  * @return the buffer with the encoded string
  */
 internal.encodeString = function(string, encoding) {
-  var strBuffer = cp.fromString(string, encoding.encoding)
-  var result = new Buffer(strBuffer.length+encoding.bom.length)
+  const strBuffer = cp.fromString(string, encoding.encoding);
+  const result = Buffer.alloc(strBuffer.length+encoding.bom.length);
 
-  for(var c = 0; c < encoding.bom.length; ++c)
-    result[c] = encoding.bom[c]
+  for (let c = 0; c < encoding.bom.length; ++c) {
+    result[c] = encoding.bom[c];
+  }
 
-  strBuffer.copy(result, encoding.bom.length)
-  return result
-}
+  strBuffer.copy(result, encoding.bom.length);
+  return result;
+};
 
 /** Encodes the string into a buffer with the encoding's BOM and terminates the string with a NULL character.
  *  The encodingByte won't be written into the buffer as this is format specific.
@@ -305,28 +313,29 @@ internal.encodeCString = function(string, encoding) {
  * @param isDoubleNull if true, the function treats the byte buffer like a two byte encoding
  */
 internal.getStringEndPos = function(buffer, isDoubleNull) {
-  for(var c = 0; c < buffer.length; ++c) {
-    if (buffer[c] == 0x00 && !isDoubleNull) 
-      return c
-    else if (buffer[c] == 0x00 && buffer[c+1] == 0x00 && isDoubleNull) {
-      return c
+  for (let c = 0; c < buffer.length; ++c) {
+    if (buffer[c] == 0x00 && !isDoubleNull)  {
+      return c;
+    } else if (buffer[c] == 0x00 && buffer[c+1] == 0x00 && isDoubleNull) {
+      return c;
     }
 
-    if (isDoubleNull)
-      ++c //Additional increment if double byte NULL is expected
+    if (isDoubleNull) {
+      ++c; // Additional increment if double byte NULL is expected
+    }
   }
 
-  return -1 //Not found
-}
+  return -1; //Not found
+};
 
 internal.decodeNumberBE = function(buffer, offset, bytes) {
-  var result = 0
-  for(var c = offset; c < offset + bytes; ++c) {
-    result = ((result << 8) | buffer[c]) //Decode big endian number
+  let result = 0;
+  for (let c = offset; c < offset + bytes; ++c) {
+    result = ((result << 8) | buffer[c]); // Decode big endian number
   }
-  return result
-}
+  return result;
+};
 
 
 
-module.exports = Decoder
+module.exports = Decoder;

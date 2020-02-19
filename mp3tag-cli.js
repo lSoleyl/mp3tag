@@ -1,20 +1,18 @@
 #!/usr/bin/env node
-var argv = require('minimist')(process.argv.slice(2))
-const _ = require('lodash')
-const async = require('async')
+const _ = require('lodash');
 
-const tag = require('./mp3tag')
-const File = require('./file')
+const tag = require('./mp3tag');
+const File = require('./file');
 
-const out = require('./output')
+const out = require('./output');
 
 
-const parser = require('./cli/taskParser')
-const Interpolator = require('./cli/interpolator')
+const parser = require('./cli/taskParser');
+const Interpolator = require('./cli/interpolator');
 
-var options = {
+const options = {
   verbose: false
-}
+};
 
 /** Command line interface to the mp3tag library
  *  Primary options: 
@@ -33,18 +31,18 @@ var options = {
  *    --set-track [trackNr]          Sets/Unsets the track number
  */
 
-var resolver
-var sourceFile
+let resolver;
+let sourceFile;
 
 //Options
 parser.defineTask('v', {
   type:'option',
   help_text: 'Verbose output'
 }, function(cb) {
-  options.verbose = true
-  out.config().debug = true //Enable debug logger
-  cb()
-})
+  options.verbose = true;
+  out.config().debug = true; // Enable debug logger
+  cb();
+});
 
 
  //Sources
@@ -54,26 +52,26 @@ parser.defineTask('in', {
   arg_display:'[filename]',
   help_text: 'The source file to read. If not set, an empty file will be generated.'
   }, function(cb) {
-    sourceFile = this.args[0] //Set the source from which the file has been read
-    getHeader(sourceFile, function(err, tagData) {
-      resolver = new Interpolator(sourceFile, tagData)
-      return cb(err, tagData)
-    })
-})
+    sourceFile = this.args[0]; //Set the source from which the file has been read
+    getHeader(sourceFile, (err, tagData) => {
+      resolver = new Interpolator(sourceFile, tagData);
+      return cb(err, tagData);
+    });
+});
 
 
 //Read operations
-var exportProperties = {} //The collected properties to export
+const exportProperties = {}; // The collected properties to export
 parser.defineTask('export-album', {
   max_args:1,
   type:'read',
   arg_display: '[property name]',
   help_text: 'exports the album name'
 }, function(tagData, cb) {
-  var property = this.args[0] || 'album'
-  var buffer = tagData.getFrameBuffer('TALB')
-  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : ''
-  cb()
+  const property = this.args[0] || 'album';
+  const buffer = tagData.getFrameBuffer('TALB');
+  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : '';
+  cb();
 });
 
 parser.defineTask('export-artist', {
@@ -82,11 +80,11 @@ parser.defineTask('export-artist', {
   arg_display: '[property name]',
   help_text: 'exports the artist'
 }, function(tagData, cb) {
-  var property = this.args[0] || 'artist'
-  var buffer = tagData.getFrameBuffer('TPE1')
-  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : ''
-  cb()
-})
+  const property = this.args[0] || 'artist';
+  const buffer = tagData.getFrameBuffer('TPE1');
+  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : '';
+  cb();
+});
 
 parser.defineTask('export-band', {
   max_args: 1,
@@ -94,11 +92,11 @@ parser.defineTask('export-band', {
   arg_display: '[property name]',
   help_text: 'exports the band name'
 }, function(tagData, cb) {
-  var property = this.args[0] || 'band'
-  var buffer = tagData.getFrameBuffer('TPE2')
-  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : ''
-  cb()
-})
+  const property = this.args[0] || 'band';
+  const buffer = tagData.getFrameBuffer('TPE2');
+  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : '';
+  cb();
+});
 
 
 parser.defineTask('export-cover', {
@@ -108,13 +106,14 @@ parser.defineTask('export-cover', {
   help_text: 'Export the cover image (if any) to destination (if given, default is "./cover.[mimetype]")'
 }, function(tagData, cb) {
   exportCover(tagData, this.args[0], function(err, res) { 
-    if (err) 
-      return cb("Cover export failed: " + err)
+    if (err) {
+      return cb("Cover export failed: " + err);
+    }
 
-    out.info("Exported cover picture to: " + res.filename + " (" + res.bytes + " bytes written)")
-    cb()
-  })
-})
+    out.info("Exported cover picture to: " + res.filename + " (" + res.bytes + " bytes written)");
+    cb();
+  });
+});
 
 parser.defineTask('export-title', {
   max_args: 1,
@@ -122,11 +121,11 @@ parser.defineTask('export-title', {
   arg_display: '[property name]',
   help_text: 'exports the title'
 }, function(tagData, cb) {
-  var property = this.args[0] || 'title'
-  var buffer = tagData.getFrameBuffer('TIT2')
-  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : ''
-  cb()
-})
+  const property = this.args[0] || 'title';
+  const buffer = tagData.getFrameBuffer('TIT2');
+  exportProperties[property] = buffer ? tagDat.decoder.decodeString(buffer) : '';
+  cb();
+});
 
 parser.defineTask('export-track', {
   max_args: 1,
@@ -134,11 +133,11 @@ parser.defineTask('export-track', {
   arg_display: '[property name]',
   help_text: 'exports the track'
 }, function(tagData, cb) {
-  var property = this.args[0] || 'track'
-  var buffer = tagData.getFrameBuffer('TRCK')
-  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : ''
-  cb()
-})
+  const property = this.args[0] || 'track';
+  const buffer = tagData.getFrameBuffer('TRCK');
+  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : '';
+  cb();
+});
 
 parser.defineTask('export-publisher', {
   max_args: 1,
@@ -146,11 +145,11 @@ parser.defineTask('export-publisher', {
   arg_display: '[property name]',
   help_text: 'exports the publisher'
 }, function(tagData, cb) {
-  var property = this.args[0] || 'publisher'
-  var buffer = tagData.getFrameBuffer('TPUB')
-  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : ''
-  cb()
-})
+  const property = this.args[0] || 'publisher';
+  const buffer = tagData.getFrameBuffer('TPUB');
+  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : '';
+  cb();
+});
 
 
 parser.defineTask('export-comment-lang', {
@@ -159,8 +158,8 @@ parser.defineTask('export-comment-lang', {
   arg_display: '[property name]',
   help_text: 'exports the comment\'s language'
 }, function(tagData, cb) {
-  var property = this.args[0] || 'comment-lang';
-  var buffer = tagData.getFrameBuffer('COMM');
+  const property = this.args[0] || 'comment-lang';
+  const buffer = tagData.getFrameBuffer('COMM');
   exportProperties[property] = buffer ? tagData.decoder.decodeComment(buffer).language : '';
   cb();
 });
@@ -171,8 +170,8 @@ parser.defineTask('export-comment-short', {
   arg_display: '[property name]',
   help_text: 'exports the comment\'s short text'
 }, function(tagData, cb) {
-  var property = this.args[0] || 'comment-short';
-  var buffer = tagData.getFrameBuffer('COMM');
+  const property = this.args[0] || 'comment-short';
+  const buffer = tagData.getFrameBuffer('COMM');
   exportProperties[property] = buffer ? tagData.decoder.decodeComment(buffer).short : '';
   cb();
 });
@@ -183,8 +182,8 @@ parser.defineTask('export-comment-long', {
   arg_display: '[property name]',
   help_text: 'exports the comment text'
 }, function(tagData, cb) {
-  var property = this.args[0] || 'comment-long';
-  var buffer = tagData.getFrameBuffer('COMM');
+  const property = this.args[0] || 'comment-long';
+  const buffer = tagData.getFrameBuffer('COMM');
   exportProperties[property] = buffer ? tagData.decoder.decodeComment(buffer).long : '';
   cb();
 });
@@ -195,8 +194,8 @@ parser.defineTask('export-comment', {
   arg_display: '[property name]',
   help_text: 'exports the comment'
 }, function(tagData, cb) {
-  var property = this.args[0] || 'comment';
-  var buffer = tagData.getFrameBuffer('COMM');
+  const property = this.args[0] || 'comment';
+  const buffer = tagData.getFrameBuffer('COMM');
   exportProperties[property] = buffer ? tagData.decoder.decodeComment(buffer) : '';
   cb();
 });
@@ -208,10 +207,10 @@ parser.defineTask('export-text-frame', {
   arg_display: '[frame id] [property name]',
   help_text: 'Display the text content of a frame specified by id'
 }, function(tagData, cb) {
-  var frameId = this.args[0];
-  var property = this.args[1] || frameId;
+  const frameId = this.args[0];
+  const property = this.args[1] || frameId;
   // could be multiple frames with the same id
-  var frameStrings = _.map(tagData.getFrameBuffers(frameId), function(buffer) { return tagData.decoder.decodeString(buffer); });
+  const frameStrings = _.map(tagData.getFrameBuffers(frameId), function(buffer) { return tagData.decoder.decodeString(buffer); });
 
   if (frameStrings.length == 0) {
     exportProperties[property] = null;
@@ -229,35 +228,35 @@ parser.defineTask('export-format', {
   arg_display: '[format]',
   help_text: 'actually exports the properties, which were exported via export-* tasks. Supported formats are: json,...'
 }, function(tagData, cb) {
-  var format = this.args[0] || 'json'
+  const format = this.args[0] || 'json';
 
   if (format === 'json') {
-    console.log(JSON.stringify(exportProperties))
+    console.log(JSON.stringify(exportProperties));
   }  
   //TODO support other formats aswell
 
-  exportProperties = {}
-  cb()
-})
+  exportProperties = {};
+  cb();
+});
 
 parser.defineTask('show-data', {
   type:'read',
   help_text:'Prints out the contained tag data'
 }, function(tagData, cb) {
-  showData(tagData)
-  cb()
-})
+  showData(tagData);
+  cb();
+});
 
-//Write operations
+// Write operations
 parser.defineTask('set-album', {
   max_args: 1,
   type: 'write',
   arg_display: '[name]',
   help_text: 'Sets/Unsets album name'
 }, function(tagData, cb) {
-  setFrameString(tagData, 'TALB', this.args[0])
-  cb()
-})
+  setFrameString(tagData, 'TALB', this.args[0]);
+  cb();
+});
 
 parser.defineTask('set-artist', {
   max_args: 1,
@@ -266,10 +265,10 @@ parser.defineTask('set-artist', {
   help_text: 'Sets/Unsets artist name'
 }, function(tagData, cb) {
   resolver.interpolate(this.args[0]).then((argString) => {
-    setFrameString(tagData, 'TPE1', argString)
-    cb()
-  })
-})
+    setFrameString(tagData, 'TPE1', argString);
+    cb();
+  });
+});
 
 parser.defineTask('set-band', {
   max_args: 1,
@@ -277,9 +276,9 @@ parser.defineTask('set-band', {
   arg_display: '[name]',
   help_text: 'Sets/Unsets band name'
 }, function(tagData, cb) {
-  setFrameString(tagData, 'TPE2', this.args[0])
-  cb()
-})
+  setFrameString(tagData, 'TPE2', this.args[0]);
+  cb();
+});
 
 
 parser.defineTask('set-title', {
@@ -288,9 +287,9 @@ parser.defineTask('set-title', {
   arg_display: '[title]',
   help_text: 'Sets/Unsets the title'
 }, function(tagData, cb) {
-  setFrameString(tagData, 'TIT2', this.args[0])
-  cb()
-})
+  setFrameString(tagData, 'TIT2', this.args[0]);
+  cb();
+});
 
 parser.defineTask('set-track', {
   max_args: 1,
@@ -298,9 +297,9 @@ parser.defineTask('set-track', {
   arg_display: '[trackNr]',
   help_text: 'Sets/Unsets the track number'
 }, function(tagData, cb) {
-  setFrameString(tagData, 'TRCK', this.args[0])
-  cb()
-})
+  setFrameString(tagData, 'TRCK', this.args[0]);
+  cb();
+});
 
 parser.defineTask('set-publisher', {
   max_args: 1,
@@ -308,9 +307,9 @@ parser.defineTask('set-publisher', {
   arg_display: '[publisher]',
   help_text: 'Sets/Unsets the publisher'
 }, function(tagData, cb) {
-  setFrameString(tagData, 'TPUB', this.args[0])
-  cb()
-})
+  setFrameString(tagData, 'TPUB', this.args[0]);
+  cb();
+});
 
 parser.defineTask('set-comment', {
   max_args: 1,
@@ -321,8 +320,8 @@ parser.defineTask('set-comment', {
   if (!this.args[0]) {
     tagData.removeFrame('COMM');
   } else {
-    var parts = this.args[0].split(';');
-    var comment;
+    const parts = this.args[0].split(';');
+    let comment;
     if (parts.length === 1) {
       // special case only long comment
       comment = {language:'eng', short:'', long:parts[0]};
@@ -347,7 +346,7 @@ parser.defineTask('delete-frame', {
   arg_display: '[frame id]',
   help_text: 'delete the frame(s) with the given frame id'
 }, function(tagData, cb) {
-  var frameId = this.args[0];
+  const frameId = this.args[0];
   tagData.removeFrame(frameId);
   cb();
 });
@@ -366,19 +365,21 @@ parser.defineTask('write', {
   help_text:'Specifies that the changes, made to the tags should be written into filename. If filename is left out, the input file is used.' + 
   'The filename may not be left out if no filename was specified with --in'
 }, function(tagData, cb) {
-  var target = this.args[0] || sourceFile
-  if (!target)
-    return cb("Failed to write changes into file. No file passed to --in or --write task.")
+  const target = this.args[0] || sourceFile;
+  if (!target) {
+    return cb("Failed to write changes into file. No file passed to --in or --write task.");
+  }
 
-  out.debug("Writing mp3 to '" + target + "'")
-  tagData.writeToFile(target, function(err) {
-    if (err)
-      return cb("Write to file failed: " + err)
+  out.debug("Writing mp3 to '" + target + "'");
+  tagData.writeToFile(target, (err) => {
+    if (err) {
+      return cb("Write to file failed: " + err);
+    }
 
-    out.info("Successfully written '" + target + "'")
-    return cb()
-  })
-})
+    out.info("Successfully written '" + target + "'");
+    return cb();
+  });
+});
 
 
 try {
@@ -387,11 +388,11 @@ try {
       console.error("ERROR: ", err);
       process.exitCode = 2;
     }
-  }) //TODO handle errors in callback
+  }); //TODO handle errors in callback
 } catch (err) { //Parsing might have failed
-  out.error("Startup error: " + err.message) 
-  console.error(err)
-  process.exit(1)
+  out.error("Startup error: " + err.message);
+  console.error(err);
+  process.exit(1);
 }
 
 
@@ -400,38 +401,38 @@ try {
 /** Simply prints all known data about the audio
  */
 function showData(tagData) {
-  var decoder = tagData.decoder
-  console.dir(tagData)
-  console.log("\n")
+  const decoder = tagData.decoder;
+  console.dir(tagData);
+  console.log("\n");
 
   function printOut(id, asName, decodefn) {
-    var decfn = decodefn || decoder.decodeString
-    var buffer = tagData.getFrameBuffer(id)
+    const decfn = decodefn || decoder.decodeString;
+    const buffer = tagData.getFrameBuffer(id);
 
-    var result = buffer ? decfn.call(decoder, tagData.getFrameBuffer(id)) : ""
-    if (typeof result !== 'string')
-      result = JSON.stringify(result, null, 2)
+    const result = buffer ? decfn.call(decoder, tagData.getFrameBuffer(id)) : "";
+    if (typeof result !== 'string') {
+      result = JSON.stringify(result, null, 2);
+    }  
     
     
-    console.log(asName + ": " + result)
+    console.log(`${asName} : ${result}`);
   }
 
   //TODO define methods to read/write these properties
 
-  printOut('TIT2', "Title")
-  printOut('TRCK', "Track")
-  printOut('TALB', "Album")
-  printOut('COMM', "Comment", decoder.decodeComment)
-  printOut('TYER', "Year")
-  printOut('TPE1', "Lead performer")
-  printOut('TPE2', "Band")
-  printOut('POPM', "Popularimeter", decoder.decodePopularity)
-  printOut('APIC', "Picture", function(buffer) {
-    var res = decoder.decodePicture(buffer)
-    res.pictureData = res.pictureData.inspect()
-    return res
-  })
-
+  printOut('TIT2', "Title");
+  printOut('TRCK', "Track");
+  printOut('TALB', "Album");
+  printOut('COMM', "Comment", decoder.decodeComment);
+  printOut('TYER', "Year");
+  printOut('TPE1', "Lead performer");
+  printOut('TPE2', "Band");
+  printOut('POPM', "Popularimeter", decoder.decodePopularity);
+  printOut('APIC', "Picture", (buffer) => {
+    const res = decoder.decodePicture(buffer);
+    res.pictureData = res.pictureData.inspect();
+    return res;
+  });
 }
 
 /** This function returns an mp3tag header based on the source.
@@ -441,12 +442,12 @@ function showData(tagData) {
  * @param callback(err,tagData) the callback which will be called upon completion
  */
 function getHeader(source, callback) {
-  if (typeof source == "string") {
-    out.debug("Loading audio file form '" + source + "'")
-    tag.readHeader(source, callback)
+  if (typeof(source) === "string") {
+    out.debug(`Loading audio file form '${source}'`);
+    tag.readHeader(source, callback);
   } else {
-    out.debug("No source passed, generating empty audio file")
-    process.nextTick(function() { callback(null, tag.newHeader()) })
+    out.debug("No source passed, generating empty audio file");
+    process.nextTick(() => { callback(null, tag.newHeader()); });
   }
 }
 
@@ -459,32 +460,34 @@ function getHeader(source, callback) {
  *                          bytes will be the number of bytes, written into the file.
  */
 function exportCover(tagData, destination, callback) {
-  var frameBuffer = tagData.getFrameBuffer('APIC')
+  const frameBuffer = tagData.getFrameBuffer('APIC');
   if (!frameBuffer) {
-    return callback("File has no picture frame")
+    return callback("File has no picture frame");
   }
-  var pic = tagData.decoder.decodePicture(frameBuffer)
-  var filename = destination || ("cover." + pic.mimeType.split('/')[1])
+  const pic = tagData.decoder.decodePicture(frameBuffer);
+  const filename = destination || ("cover." + pic.mimeType.split('/')[1]);
   File.open(filename, "w", function(err, file) {
-    if (err) 
-      return callback(err)
+    if (err) {
+      return callback(err);
+    }
 
     pic.pictureData.writeInto(file, function(err,bytes) {
-      if (err)
-        return callback(err)
+      if (err) {
+        return callback(err);
+      }
 
-      file.close()      
-      process.nextTick(function() { callback(null, {bytes:bytes, filename:filename}) })
-    })
-  })
+      file.close();
+      process.nextTick(() => { callback(null, {bytes:bytes, filename:filename}); });
+    });
+  });
 }
 
 /** Generic string writing utiltiy for string properties
  */
 function setFrameString(tagData, frameID, value) {
   if (typeof(value) !== 'string') {
-    tagData.removeFrame(frameID) //Just remove the frame
+    tagData.removeFrame(frameID); // Just remove the frame
   } else {
-    tagData.setFrameBuffer(frameID, tagData.decoder.encodeString(value))
+    tagData.setFrameBuffer(frameID, tagData.decoder.encodeString(value));
   }
 }

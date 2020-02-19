@@ -1,19 +1,14 @@
-//Node dependencies
-const fs = require('fs')
-const util = require('util')
-
 //External dependencies
-const async = require('async')
-const _ = require('lodash')
+const async = require('async');
+const _ = require('lodash');
 
 //Utilities
-const cp = require('./cp')
-const encoding = require('./encoding')
+const encoding = require('./encoding');
 
 //Classes
-const File = require('./file')
-const TagData = require('./tagdata')
-const Frame = require('./frame')
+const File = require('./file');
+const TagData = require('./tagdata');
+const Frame = require('./frame');
 
 
 module.exports = {
@@ -22,7 +17,7 @@ module.exports = {
   /** Returns an empty mp3 tag header
    */
   newHeader: function() { return TagData.empty() }
-}
+};
 
 
 /** 
@@ -30,35 +25,39 @@ module.exports = {
  * @param callback the callback which receives the ID3 tag data
  */
 function readID3v2(path, callback) {
-  File.open(path, "r", function(err, file) {
-    if (err)
-      return callback(err)
+  File.open(path, "r", (err, file) => {
+    if (err) {
+      return callback(err);
+    }
 
-    var header = new Buffer(TagData.tagHeaderSize)
-    file.read(header, 0, header.length, function(err, bytesRead) { //Read 10 Byte header
-      if (err)
-        return callback(err)
-      if (bytesRead < header.length)
-        return callback(new Error("Can't read ID3 tag header!"))
+    const header = Buffer.alloc(TagData.TAG_HEADER_SIZE);
+    file.read(header, 0, header.length, (err, bytesRead) => { //Read 10 Byte header
+      if (err) {
+        return callback(err);
+      }
+      if (bytesRead < header.length) {
+        return callback(new Error("Can't read ID3 tag header!"));
+      }
 
-      var marker = header.toString('ASCII', 0, 3)
-      var majorVersion = header.readUInt8(3)
-      var minorVersion = header.readUInt8(4)
-      var flags = header.readUInt8(5)
+      const marker = header.toString('ASCII', 0, 3);
+      const majorVersion = header.readUInt8(3);
+      const minorVersion = header.readUInt8(4);
+      const flags = header.readUInt8(5);
 
-      //Add constant header size to given header size to make it comparable with the file's offset
-      var headerSize = encoding.decodeUInt7Bit(header.readUInt32BE(6)) + TagData.tagHeaderSize 
+      // Add constant header size to given header size to make it comparable with the file's offset
+      const headerSize = encoding.decodeUInt7Bit(header.readUInt32BE(6)) + TagData.TAG_HEADER_SIZE;
 
-      if (marker != "ID3") { //No header at all
-        return callback(new Error("No support for tagless files yet!"))
+      if (marker !== "ID3") { //No header at all
+        return callback(new Error("No support for tagless files yet!"));
         //TODO create empty header or something like this
       } else {
         // This library supports v2.3 and v2.4 (though 2.4 is not yet complete)
-        var hasFooter = false
+        let hasFooter = false;
         if (majorVersion === 4) {
-          hasFooter = (flags & 0x10) != 0 
-          if (hasFooter)
-            headerSize += TagData.tagFooterSize //footer isn't included in the headersize either
+          hasFooter = (flags & 0x10) != 0;
+          if (hasFooter) {
+            headerSize += TagData.TAG_FOOTER_SIZE; // footer isn't included in the headersize either
+          }
 
           /** Meaning of the footer:
            *
@@ -68,31 +67,33 @@ function readID3v2(path, callback) {
            *      "3DI" <majorV:1><minorV:1><flags:1><size:4>
            */
         } else if (majorVersion !== 3) {
-          return callback(new Error("Unsupported ID3 version: 2." + majorVersion + "." + minorVersion))
+          return callback(new Error("Unsupported ID3 version: 2." + majorVersion + "." + minorVersion));
         }
         
 
 
-        var hasExtendedHeader = (flags & 0x40) != 0
+        const hasExtendedHeader = (flags & 0x40) != 0;
         
-        if (hasExtendedHeader)
-          return callback(new Error("No support for extended header yet!"))
+        if (hasExtendedHeader) {
+          return callback(new Error("No support for extended header yet!"));
+        }
 
-        readFrames(file, headerSize, function(err, frames) {
-          if (err)
-            return callback(err)
+        readFrames(file, headerSize, (err, frames) => {
+          if (err) {
+            return callback(err);
+          }
 
-          frames = frames || []                  
-          var padding = getPadding(frames, headerSize)         //Filter out padding
-          frames = _.filter(frames, function(frame) { return !frame.padding })
+          frames = frames || [];                
+          const padding = getPadding(frames, headerSize);  // Filter out padding
+          frames = _.filter(frames, (frame) => { return !frame.padding; });
 
-          process.nextTick(function() { callback(null, 
-            new TagData(file, {'major':majorVersion, 'minor':minorVersion}, flags, headerSize, frames, padding))
-          })
-        })
+          process.nextTick(() => { 
+            callback(null, new TagData(file, {'major':majorVersion, 'minor':minorVersion}, flags, headerSize, frames, padding));
+          });
+        });
       }
-    })
-  })
+    });
+  });
 }
 
 /** This function determines the padding offset and size for the given frames.
@@ -103,27 +104,32 @@ function readID3v2(path, callback) {
  *         Length will be zero if file isn't padded.
  */
 function getPadding(frames) {
-  var frame = frames[frames.length-1] //Last frame is the padding frame (if any)
-  return frame.getPadding()
+  const frame = frames[frames.length-1]; // Last frame is the padding frame (if any)
+  return frame.getPadding();
 }
 
 function readFrames(file, tagSize, callback) {
-  var frames = []
-                //v-- like compose, but correct order
-  var fn = async.seq(
-    async.apply(readFrame, file, tagSize), 
-    function(frame, cb) { 
-      frames.push(frame) 
-      return cb(null, frame)
+  const frames = [];
+         
+  async.whilst((cb) => { return cb(null, file.pos < tagSize); }, 
+    (cb) => {
+      readFrame(file, tagSize, (err, frame) => {
+        if (err) {
+          return cb(err);
+        }
+
+        frames.push(frame) ;
+        return cb(null, frame);
+      });
+    }, 
+    (err, res) => {
+      if (err) {
+        return callback(err);
+      }
+
+      return callback(null, frames);
     }
-  )
-
-  async.whilst(function() { return file.pos < tagSize }, fn, function(err, res) {
-    if (err)
-      return callback(err)
-
-    return callback(null, frames)
-  })
+  );
 }
 
 /** Reads a single header frame
@@ -148,5 +154,5 @@ function readFrames(file, tagSize, callback) {
  */
 function readFrame(file, mediaStart, callback) {
   //TODO remove this forwarding call
-  return Frame.read(file, mediaStart, callback)
+  return Frame.read(file, mediaStart, callback);
 }
