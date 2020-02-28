@@ -39,7 +39,7 @@ class File {
 
   writeSlice(buffer, offset, length, callback) {
     return new Promise((resolve, reject) => {
-      fs.write(this.fd, buffer, offset, length, this.pos, function(err, bytes, buffer) {
+      fs.write(this.fd, buffer, offset, length, this.pos, (err, bytes, buffer) => {
         if(err) {
           return callback ? callback(err) : reject(err);
         }
