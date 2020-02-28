@@ -409,7 +409,7 @@ function showData(tagData) {
     const decfn = decodefn || decoder.decodeString;
     const buffer = tagData.getFrameBuffer(id);
 
-    const result = buffer ? decfn.call(decoder, tagData.getFrameBuffer(id)) : "";
+    let result = buffer ? decfn.call(decoder, tagData.getFrameBuffer(id)) : "";
     if (typeof result !== 'string') {
       result = JSON.stringify(result, null, 2);
     }  
