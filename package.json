@@ -1,6 +1,6 @@
 {
   "name": "mp3tag",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "A tool for changing mp3 tag data",
   "autor": "lSoleyl <lsoleyl@gmail.com>",
   "main": "mp3tag.js",
