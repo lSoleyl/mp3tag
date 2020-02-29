@@ -8,9 +8,9 @@ const Data = require('./data');
 class DataSource {
   /** Constructs the data source from a file and optional offset and length.
    *
-   * @param sourceFile a File where the data should be read from
-   * @param offset the offset, where the data starts (default: 0)
-   * @param size the length of the data block (default: sourceFile.size-offset)
+   * @param {File} sourceFile a File where the data should be read from
+   * @param {number} offset the offset, where the data starts (default: 0)
+   * @param {number} size the length of the data block (default: sourceFile.size-offset)
    */
   constructor(sourceFile, offset, size) {
     if (!(sourceFile instanceof File)) {
@@ -27,16 +27,11 @@ class DataSource {
   /** Converts the DataSource into a Data object. This works asynchronously, as it
    *  has to read the content from the file
    *
-   * @param callback(err,data) the callback getting the result
+   * @return {Promise<Data>}
    */
-  toData(callback) {
-    this.source.readSlice(this.offset, this.size, function(err, buffer) {
-      if (err) {
-        return callback(err);
-      }
-
-      callback(null, new Data(buffer));
-    });
+  async toData() {
+    const buffer = await this.source.readSlice(this.offset, this.size);
+    return new Data(buffer);
   }
   
   toString () {

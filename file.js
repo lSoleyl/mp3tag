@@ -15,20 +15,18 @@ class File {
    * @param {Buffer} buffer the buffer to read into
    * @param {number} offset the offset in the buffer to start writing in
    * @param {number} length the number of bytes to read
-   * @param callback optional callback(err,bytesRead,buffer) to call upon complete read. This parameter should
-   *                 be left out if the function is used as promise.
    * 
    * @return {Promise<number>} returns a promise that resolves to the number of actually read bytes
    */
-  read(buffer, offset, length, callback) {
+  read(buffer, offset, length) {
     return new Promise((resolve, reject) => {
       fs.read(this.fd, buffer, offset, length, this.pos, (err, bytesRead, buffer) => {
         if (err) {
-          return callback ? callback(err) : reject(err);
+          return reject(err);
         }
   
         this.pos += bytesRead;
-        callback ? callback(null, bytesRead, buffer) : resolve(bytesRead);
+        resolve(bytesRead);
       });
     });
   }
@@ -37,20 +35,33 @@ class File {
     return this.writeSlice(buffer, 0, buffer.length, callback);
   }
 
-  writeSlice(buffer, offset, length, callback) {
+  /** Writes the bytes from the buffer into the file at the file's current
+   *  write position.
+   * 
+   * @param {Buffer} buffer the buffer to write into the file
+   * @param {number} offset the buffer offset to start writing from
+   * @param {number} length the number of bytes to write 
+   * 
+   * @return {Promise<number>} resolves to the number of bytes actually written into the file
+   */
+  writeSlice(buffer, offset, length) {
     return new Promise((resolve, reject) => {
       fs.write(this.fd, buffer, offset, length, this.pos, (err, bytes, buffer) => {
         if(err) {
-          return callback ? callback(err) : reject(err);
+          return reject(err);
         }
   
-        this.pos += bytes;
-  
-        process.nextTick(() => { callback(null, bytes, buffer); });
+        this.pos += bytes;  
+        resolve(bytes);
       });
     });    
   }
 
+  /** Returns a function that can be repeatedly called to write a buffer into 
+   *  this file.
+   * 
+   * @return {(buffer:Buffer, offset:number, length:number)=>Promise<number>} 
+   */
   bufferWriter() {
     return File.prototype.writeSlice.bind(this);
   }
@@ -90,15 +101,16 @@ class File {
   /** Sets the file position further by the specified amount of bytes, relative to
    *  either 'pos' or 'start'
    * 
-   * @param byte the amount of bytes to move forward
-   * @param relativeTo the position to move relative to 'pos' = current pos, 'start' = file start
+   * @param {number} nBytes the number of bytes to move forward
+   * @param {string} relativeTo the position to move relative to 'pos' = current pos, 'start' = file start
    */
-  seek(bytes, relativeTo) {
+  seek(nBytes, relativeTo) {
     const offset = (relativeTo === 'start') ? 0 : this.pos;
-    this.pos = offset + bytes;
+    this.pos = offset + nBytes;
   }
 
-
+  /** Closes the file
+   */
   close() {
     fs.close(this.fd, () => {});
     this.fd = undefined;
@@ -107,10 +119,10 @@ class File {
 }
 
 /** Actual open function to create a file object by asynchronously opening the specified file.
+ *  The file read position will be positioned at the start of the file even if "a" is specified.
  * 
  * @param {string} path which file to open
  * @param {string} mode the filemode to open the file with (one of: "r", "w", "a")
- * @param {(error:Error, file:File)=>void} callback optional completion callback
  * 
  * @return {Promise<File>} a promise that resolves to the opened file object
  */
@@ -122,18 +134,16 @@ File.open = function(path, mode, callback) {
   return new Promise((resolve, reject) => {
     fs.open(path, mode, (err, fd) => {
       if (err) {
-        return callback ? callback(err) : reject(err);
+        return reject(err);
       }
   
       fs.stat(path, (err, stat) => {
         if (err) {
-          return callback ? callback(err) : reject(err);
+          return reject(err);
         }
   
-        process.nextTick(() => { 
-          const file = new File(fd, path, stat.size);
-          callback ? callback(null, file) : resolve(file);
-        });
+        const file = new File(fd, path, stat.size);
+        return resolve(file);
       });
     });
   });  

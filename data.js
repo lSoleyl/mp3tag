@@ -6,9 +6,9 @@ var File = require('./file');
 class Data {
   /** Constructor for Data object
    *
-   * @param source a Buffer containing the data
-   * @param offset the offset where the data starts (default 0)
-   * @param size the length of the data (default buffer.length)
+   * @param {Buffer} source a Buffer containing the data
+   * @param {number} offset the offset where the data starts (default 0)
+   * @param {number} size the length of the data (default buffer.length)
    */
   constructor(source, offset, size) {
     let dataSize;
@@ -23,29 +23,28 @@ class Data {
     this.source = source;
   }
 
+  /** @typedef {(buffer:Buffer, offset:number, length:number)=>Promise<number>} Writer 
+   */
+
   /** Write the data into a file at the file's current position. 
    *  The whole buffer is simply written into the given file
    *  (while respecting offset and size). 
    *
-   * @param writer either a File opened in write mode or a writer of type:
+   * @param {File|Writer} writer either a File opened in write mode or a writer of type:
    *               function(buffer, offset, length, cb(err, bytes))
-   * @param callback(err, bytes) will be called upon completion or error
-   *                 bytes = total amount of bytes written to file
+   * 
+   * @return {Promise<number>} resolves to the total number of bytes written to file
    */
-  writeInto(writer, callback) {
-    const write = writer;
-    if (writer instanceof File) {
-      write = writer.bufferWriter();
-    }
-
-    write(this.source, this.offset, this.size, callback);
+  writeInto(writer) {
+    const write = (writer instanceof File) ? writer.bufferWriter() : writer;
+    return write(this.source, this.offset, this.size);
   }
 
   /** Returns the buffer, which the data holds.
    *  If offset == 0 and size == buffer.length, then the whole underlying buffer is returned.
    *  Otherwise a slice of it is returned.
    *  
-   * @return the buffer, represented by this data object.                            
+   * @return {Buffer} the buffer, represented by this data object.                            
    */
   toBuffer() {
     if (this.offset == 0 && this.size == this.source.length) {
