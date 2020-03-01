@@ -9,20 +9,37 @@ const _ = require('lodash');
 
 const Data = require('./data');
 
+
+class Encoding {
+  /**
+   * @param {string} name the name of the encoding
+   * @param {number[]} bom array of BOM bytes
+   * @param {boolean} dbe true if double-byte encoding (terminated wit 0x00 0x00)
+   * @param {number?} encodingByte optional encoding byte used for identification
+   */
+  constructor(name, bom, dbe, encodingByte) {
+    this.name = name;
+    this.bom = bom;
+    this.dbe = dbe;
+    this.encodingByte = encodingByte;
+  }
+}
+
+
 /** List of unicode encodings supported as text encoding
  */
 const UCEncodings = [
-  {encoding:'UTF-16LE', bom:[0xFF, 0xFE], dbe:true}, //dbe = double-byte-encoding
-  {encoding:'UTF-16BE', bom:[0xFE, 0xFF], dbe:true},
-  {encoding:'UTF-8',    bom:[0xEF, 0xBB, 0xBF], dbe:false},
-  {encoding:'UTF-8',    bom:[], dbe:false} //Empty bom sets the default codepage
+  new Encoding('UTF-16LE', [0xFF, 0xFE], true, 0x01),
+  new Encoding('UTF-16BE', [0xFE, 0xFF], true),
+  new Encoding('UTF-8', [0xEF, 0xBB, 0xBF], false),
+  new Encoding('UTF-8', [], false, 0x03) // Empty bom sets the default codepage
 ];
 
 /** Defines the default encoding for the encodeString method
  */
 const DEFAULT_ENCODINGS = {
-  3: _.defaults({encodingByte:0x01}, UCEncodings[0]),  //UTF-16LE with bom
-  4: _.defaults({encodingByte:0x03}, UCEncodings[3])   //UTF-8 without bom
+  3: UCEncodings[0],  // UTF-16LE with bom
+  4: UCEncodings[3]   // UTF-8 without bom
 };
 
 
@@ -37,9 +54,9 @@ class Decoder {
 
   /** This method decodes the given buffer into a js string.
    *
-   * @param buffer the buffer to decode (the first byte is the encoding byte)
+   * @param {Buffer} buffer the buffer to decode (the first byte is the encoding byte)
    *
-   * @return the decoded string
+   * @return {string} the decoded string
    */ 
   decodeString(buffer) {
     if (!(buffer instanceof Buffer)) {
@@ -56,7 +73,7 @@ class Decoder {
 
   /** Decodes a comment frame buffer into a structure of {language,short,long}
    *
-   * @param buffer the buffer of the comment frame to decode
+   * @param {Buffer} buffer the buffer of the comment frame to decode
    *
    * @return the decoded comment object
    */
@@ -113,9 +130,9 @@ class Decoder {
 
   /** Decodes the popularity object from the given frame buffer.
    *
-   * @param buffer the buffer to decode
+   * @param {Buffer} buffer the buffer to decode the popularity from
    *
-   * @return {email,rating,playCount}
+   * @return {email:string,rating:number,playCount:number} the decoded popularity
    */
   decodePopularity(buffer) { 
                                       //v-- no unicode support for email
@@ -131,6 +148,11 @@ class Decoder {
     }
   }
 
+  /**
+   * @param {Buffer} buffer the buffer to decode the buffer from
+   * 
+   * @return the pictue object
+   */
   decodePicture(buffer) {
     if (!(buffer instanceof Buffer)) {
       throw new Error(`Expected buffer, got: ${typeof(buffer)} - ${util.inspect(buffer, {showHidden:true})}`);
@@ -159,10 +181,10 @@ class Decoder {
    *  If no encodingByte is passed the encoding is being guessed by searching the buffer
    *  for a BOM.
    *
-   * @param buffer the buffer (not containing the encodingByte)
-   * @param encodingByte optional encoding byte, which specifies the buffer's encoding
+   * @param {Buffer} buffer the buffer (not containing the encodingByte)
+   * @param {number} encodingByte optional encoding byte, which specifies the buffer's encoding
    *
-   * @return an encoding {encoding:string, bom:array[byte], dbe:bool} which describes the detected 
+   * @return {Encoding} an encoding, which describes the detected 
    *         buffer encoding
    */
   getBufferEncoding(buffer, encodingByte) {
@@ -171,7 +193,7 @@ class Decoder {
     }
 
     if (encodingByte === 0x00) { // ISO-8895-1 encoding
-      return {encoding:'ISO-8895-1', bom:[], dbe:false};
+      return new Encoding('ISO-8895-1', [], false);
     }
 
     if (encodingByte === 0x01) { // UC (search for BOM and look up)
@@ -188,11 +210,11 @@ class Decoder {
 
     if (this.version >= 4) { //New encodings added with 2.4
       if (encodingByte === 0x02) {
-        return {encoding:'UTF-16BE', bom:[], dbe:true}; // UTF-16BE without BOM
+        return new Encoding('UTF-16BE', [], true); // UTF-16BE without BOM
       }
 
       if (encodingByte === 0x03) {
-        return {encoding:'UTF-8', bom:[], dbe:false};
+        return new Encoding('UTF-8', [], false);
       }
     }
 
@@ -203,9 +225,9 @@ class Decoder {
   /** Encodes the given string into a buffer with the default encoding, which is
    *  UTF-16LE for v2.3 and UTF-8 for v2.4.
    *
-   * @param string the string to encode
+   * @param {string} string the string to encode
    *
-   * @return the encoded buffer
+   * @return {Buffer} the encoded buffer
    */
   encodeString(string) {
     if (typeof(string) !== "string") {
@@ -235,11 +257,11 @@ const internal = {};
 /** Same as decodeCString, but this string isn't zero terminated. The whole
  *  buffer is treated as string.
  * 
- * @param decoder the decoder to use for the decoding operation
- * @param buffer the buffer to read from
- * @param encodingByte the byte which specifies, which encoding to use
+ * @param {Decoder} decoder the decoder to use for the decoding operation
+ * @param {Buffer} buffer the buffer to read from
+ * @param {number} encodingByte the byte which specifies, which encoding to use
  *
- * @return decoded string
+ * @return {string} decoded string
  */
 internal.decodeString = function(decoder, buffer, encodingByte) {
   const encoding = decoder.getBufferEncoding(buffer, encodingByte);
@@ -249,11 +271,11 @@ internal.decodeString = function(decoder, buffer, encodingByte) {
 
 /** Receives a zero terminated buffer to decode from and the encoding byte
  *  
- * @param decoder the decoder to use for this operation
- * @param buffer the buffer to read the string from
- * @param encodingByte the byte, which specifies encoding
+ * @param {Decoder} decoder the decoder to use for this operation
+ * @param {Buffer} buffer the buffer to read the string from
+ * @param {number} encodingByte the byte, which specifies encoding
  *
- * @return returns {string,nullPos,pastNullPos}
+ * @return {{string:string,nullPos:number,pastNullPos:number}} the decoded string object
  */
 internal.decodeCString = function(decoder, buffer, encodingByte) {
   const encoding = decoder.getBufferEncoding(buffer, encodingByte);
@@ -277,10 +299,10 @@ internal.decodeCString = function(decoder, buffer, encodingByte) {
 /** Encodes the string into a buffer with the encoding's BOM.
  *  The encodingByte won't be written into the buffer as this is format specific.
  *  
- * @param string the string to encode
- * @param encoding{encoding,bom,dbe} the encoding object, which represents the encoding to use
+ * @param {string} string the string to encode
+ * @param {Encoding} encoding the encoding object, which represents the encoding to use
  *
- * @return the buffer with the encoded string
+ * @return {Buffer} the buffer with the encoded string
  */
 internal.encodeString = function(string, encoding) {
   const strBuffer = cp.fromString(string, encoding.encoding);
@@ -297,10 +319,10 @@ internal.encodeString = function(string, encoding) {
 /** Encodes the string into a buffer with the encoding's BOM and terminates the string with a NULL character.
  *  The encodingByte won't be written into the buffer as this is format specific.
  *  
- * @param string the string to encode
- * @param encoding{encoding,bom,dbe} the encoding object, which represents the encoding to use
+ * @param {string} string the string to encode
+ * @param {Encoding} encoding the encoding object, which represents the encoding to use
  *
- * @return the buffer with the encoded string
+ * @return {Buffer} the buffer with the encoded string
  */
 internal.encodeCString = function(string, encoding) {
   return internal.encodeString(string+'\0', encoding);
@@ -309,8 +331,10 @@ internal.encodeCString = function(string, encoding) {
 
 /** Returns the offset of the NULL (double-)byte inside a string buffer
  *
- * @param buffer the buffer to search
- * @param isDoubleNull if true, the function treats the byte buffer like a two byte encoding
+ * @param {Buffer} buffer the buffer to search
+ * @param {boolean} isDoubleNull if true, the function treats the byte buffer like a two byte encoding
+ * 
+ * @return {number} returns the endpos
  */
 internal.getStringEndPos = function(buffer, isDoubleNull) {
   for (let c = 0; c < buffer.length; ++c) {
@@ -328,6 +352,13 @@ internal.getStringEndPos = function(buffer, isDoubleNull) {
   return -1; //Not found
 };
 
+/**
+ * @param {Buffer} buffer the buffer to decode the number from
+ * @param {number} offset the offset to start decoding the number from
+ * @param {number} bytes the number of bytes which encode the number
+ * 
+ * @return {number} the decoded number
+ */
 internal.decodeNumberBE = function(buffer, offset, bytes) {
   let result = 0;
   for (let c = offset; c < offset + bytes; ++c) {

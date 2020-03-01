@@ -6,6 +6,12 @@
 var _ = require('lodash');
 
 module.exports = {
+  /**
+   * @param {Buffer} buffer the buffer to decode
+   * @param {string} encoding the name of the buffer's encoding
+   * 
+   * @return {string} the decoded string
+   */
   fromBuffer: function(buffer, encoding) {
     encoding = String(encoding).toLowerCase();
     const decoder = from[encoding];
@@ -16,6 +22,12 @@ module.exports = {
     return decoder(buffer);
   },
 
+  /**
+   * @param {string} string the string to encode
+   * @param {string} encoding the encoding to use
+   * 
+   * @return {Buffer} the string encoded in the specified encoding
+   */
   fromString: function(string, encoding) { 
     encoding = String(encoding).toLowerCase();
     let encoder = to[encoding];
@@ -29,6 +41,11 @@ module.exports = {
 
 
 const from = {
+  /**
+   * @param {Buffer} buffer the buffer to decode into a string
+   * 
+   * @return {string} the decoded string
+   */
   "iso-8895-1": function(buffer) {
     let result = "";
     _.each(buffer, function(byte) {
@@ -37,11 +54,20 @@ const from = {
     return result;
   },
 
+  /**
+   * @param {Buffer} buffer the buffer to decode into a string
+   * 
+   * @return {string} the decoded string
+   */
   "utf-16le": function(buffer) { 
     return buffer.toString('utf16le'); 
   },
 
-
+  /**
+   * @param {Buffer} buffer the buffer to decode into a string
+   * 
+   * @return {string} the decoded string
+   */
   "utf-16be": function(buffer) {
     const bufferLE = Buffer.alloc(buffer.length);
 
@@ -58,6 +84,11 @@ const from = {
     return from["uft-16le"](bufferLE);
   },
 
+  /**
+   * @param {Buffer} buffer the buffer to decode into a string
+   * 
+   * @return {string} the decoded string
+   */
   "utf-8": function(buffer) { 
     return buffer.toString('utf8');
   }

@@ -6,9 +6,9 @@
   /** Decodes a 7bit encoded unsigned integer:
    *  Format: 0b0xxxxxx0xxxxxx0xxxxxx0xxxxxx
    *
-   * @param uint28 the number to decode
+   * @param {number} uint28 the number to decode
    *
-   * @return the decoded number
+   * @return {number} the decoded number
    */
   decodeUInt7Bit: function(uint28) {
     const x = uint28;
@@ -18,9 +18,9 @@
   /** Encodes a unsigned integer into a  7bit unsigned integer. 
    *  The first 4 bits get cut off. 
    *
-   * @param uint32 the integer to encode
+   * @param {number} uint32 the integer to encode
    *
-   * @return a 28 bit encoded integer
+   * @return {number} a 28 bit encoded integer
    */
   encodeUInt7Bit: function(uint32) {
     const x = uint32;
