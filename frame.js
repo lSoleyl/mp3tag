@@ -4,9 +4,11 @@
 const Data = require('./data');
 
 
+/**
+ *  This class represents a single id3 frame in the mp3 file.
+ */
 class Frame {
   /**
-   * 
    * @param {string} id the frame id (no necesarily unique)
    * @param {number} pos byte position in the file
    * @param {number} size the size of the frame
