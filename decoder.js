@@ -265,7 +265,7 @@ const internal = {};
  */
 internal.decodeString = function(decoder, buffer, encodingByte) {
   const encoding = decoder.getBufferEncoding(buffer, encodingByte);
-  return cp.fromBuffer(buffer.slice(encoding.bom.length), encoding.encoding);
+  return cp.fromBuffer(buffer.slice(encoding.bom.length), encoding.name);
 };
 
 
@@ -284,14 +284,14 @@ internal.decodeCString = function(decoder, buffer, encodingByte) {
   result.nullPos = internal.getStringEndPos(buffer, encoding.dbe);
 
   if (result.nullPos === -1) {
-    throw new Error("Expected NULL terminated string, missing NULL byte(s), with encoding: " + encoding.encoding);
+    throw new Error("Expected NULL terminated string, missing NULL byte(s), with encoding: " + encoding.name);
   }
 
   result.pastNullPos = result.nullPos + (encoding.dbe ? 2 : 1);
 
   const contentSlice = buffer.slice(encoding.bom.length, result.nullPos);
   
-  result.string = cp.fromBuffer(contentSlice, encoding.encoding);
+  result.string = cp.fromBuffer(contentSlice, encoding.name);
   return result;
 };
 
@@ -305,7 +305,7 @@ internal.decodeCString = function(decoder, buffer, encodingByte) {
  * @return {Buffer} the buffer with the encoded string
  */
 internal.encodeString = function(string, encoding) {
-  const strBuffer = cp.fromString(string, encoding.encoding);
+  const strBuffer = cp.fromString(string, encoding.name);
   const result = Buffer.alloc(strBuffer.length+encoding.bom.length);
 
   for (let c = 0; c < encoding.bom.length; ++c) {

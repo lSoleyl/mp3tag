@@ -4,8 +4,8 @@
 const Data = require('./data');
 
 
-/**
- *  This class represents a single id3 frame in the mp3 file.
+/** 
+ * This class represents a single id3 frame in the mp3 file.
  */
 class Frame {
   /**
@@ -119,7 +119,7 @@ Frame.read = async function(file, mediaStart) {
   
   // Read first byte to check for padding
   let bytesRead = await file.read(buffer, 0, 1);
-  if (byteRead !== 1) {
+  if (bytesRead !== 1) {
     throw new Error("Can't read initial byte of frame header");
   }
 
