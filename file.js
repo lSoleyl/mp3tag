@@ -31,8 +31,14 @@ class File {
     });
   }
 
-  write(buffer, callback) {
-    return this.writeSlice(buffer, 0, buffer.length, callback);
+  /** Writes the given buffer into the file at the current write position
+   * 
+   * @param {Buffer} buffer the buffer to write
+   * 
+   * @return {Promise<number>} resolves to the number of bytes written
+   */
+  write(buffer) {
+    return this.writeSlice(buffer, 0, buffer.length);
   }
 
   /** Writes the bytes from the buffer into the file at the file's current

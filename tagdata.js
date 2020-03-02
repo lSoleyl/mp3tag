@@ -5,7 +5,6 @@
  * This class makes the assumption, that each tag id is actually unique for the whole tag.
  * This assumtion affects the methods getFrameBuffer/getFrameData/setFrameBuffer
  */
-const async = require("async");
 const _ = require("lodash");
 
 const encoding = require('./encoding');
@@ -320,100 +319,102 @@ class TagData {
    *  reset this state.
    * 
    * @param path the file's path to write into
-   * @param callback(err, res) will be called upon completion
+   *
+   * @return {Promise<void>} gets resolved if the file has been successfully written.
    */
-  writeToFile(path, callback) {
+  async writeToFile(path) {
     const self = this;
     const sameFile = (self.audioData.source.name === path);
 
-    //No change & same file -> no write necessary
+    // No change & same file -> no write necessary
     if (sameFile && !this.dirty) {
-      return process.nextTick(callback)
+      return;
     }
 
-    /**This function will retrive the audioFN and call the provided callback with it.
-     * AudioFN is a nop if no audio write is necessary
-     *
-     * @param cb(err, audioFn(file, innerCB)) - this callback gets called with an error or
-     *           an audioFn. The audioFn is used to write the audio data of the tagData into
-     *           the provided file. the innerCB is invoked if the audio data has been successfully written.
+    /** This helper function will load the audio data into a buffer iff rewriting the file
+     *  is necessary to prevent overwriting the audio data when writing out the tag frames.
+     *  AudioData.writeToFile() should be called on the returned object to write the buffered
+     *  audio data back into the file.
+     * 
+     * @return {Promise<AudioData>} the object holding the optionally buffered audio data.
      */ 
-    function withAudioFN(cb) {
+    const getAudioData = async () => {
       // We don't have to write audio if a rewrite isn't necessary and we write into the same file
-      if (sameFile && !self.rewrite) {
-        // Basically return a NOP
-        process.nextTick(() => { cb(null, (file, innerCB) => { process.nextTick(innerCB); }); });
-      } else { // Otherwise, writing audio is necessary
-        // We have to load the audioData into a buffer, before writing, or else we will overwrite it.
-        self.audioData.toData((err, data) => {
-          if (err) {
-            return cb(err);
-          }
-
-          cb(null, (file, innerCB) => {
-            file.write(data.toBuffer(), innerCB);
-          });
-        });
+      if (sameFile && !this.rewrite) {
+        // AudioData.writeToFile() will be a NOP
+        return new AudioData();
+      } else { 
+        // Otherwise, writing audio is necessary
+        // We have to load the audioData into a buffer, before writing any frames,
+        // or else we will overwrite it.
+        return new AudioData(await this.audioData.toData());
       }
+    };
+
+    // load audio data if necessary
+    const audioData = await getAudioData();
+
+    // Open target file for writing
+    let fmode = "w";
+    if (sameFile && !this.rewrite) {
+      // Don't clear file on open
+      fmode = "a"; 
     }
 
-    // Load audio data if necessary and bind to audioFN
-    withAudioFN(function(err, audioFN) {
-      // Open target file for writing
+    const file = await File.open(path, fmode);
+    
+    // Write the file parts in order
+    await this.writeTagHeader(file);
 
-      let fmode = "w";
-      if (sameFile && !self.rewrite) {
-        fmode = "a"; // Don't clear file on open
-      }
+    // Write frames
+    for (const frame of this.frames) {
+      await frame.write(file); //FIXME: does this actually work!?
+    }
+
+    // Write padding (generate a buffer filled with 0x00)
+    const padding = Buffer.alloc(self.padding.size, 0x00);
+    await file.write(padding);
+
+    // Write footer (if any)
+    await this.writeTagFooter(file);
+
+    // Now write the audio data (if needed) and close the file
+    await audioData.writeToFile(file);
+    file.close();
+    
+    if (sameFile) {
+      // Clear dirty flag if we have just updated the source file
+      this.dirty = false;
+    }
+    
+    return;
+  }
+}
 
 
-      File.open(path, fmode, function(err, file) {
-        if (err) {
-          return callback(err);
-        }
+/** Helper class for writing back the mp3's audio data
+ */
+class AudioData {
+  /** 
+   * @param {Data?} data the loaded audio data to write back. May be undefined if 
+   *                     writing back the audio isn't necessary.
+   */
+  constructor(data) {
+    this.data = data;
+  }
 
-        self.writeTagHeader(file, function(err) {
-          if (err) {
-            return callback(err);
-          }
-
-          // Write frames
-          async.eachSeries(self.frames, 
-            function(frame, cb) { frame.write(file, cb) }, 
-            function(err) {
-            if (err) {
-              return callback(err);
-            }
-
-            // Write padding
-            const padding = Buffer.alloc(self.padding.size);
-            padding.fill(0x00); // Fill generated buffer with zero bytes
-            file.write(padding, function(err) {
-              if (err) {
-                return callback(err);
-              }
-
-              self.writeTagFooter(file, function(err) {
-                // Now write the audio data (if needed) and close the file
-                audioFN(file, function(err) {
-                  file.close();
-                  if (err) {
-                    return callback(err);
-                  }
-
-                  if (sameFile) { // Clear dirty flag if we have just updated the source file
-                    self.dirty = false;
-                  }
-
-                  process.nextTick(callback);
-                });
-              });
-            });
-          });
-        });
-      });
-
-    });
+  /** 
+   * @param {File} file the file to write into
+   * 
+   * @return {Promise<number>} resolves to the number of bytes written
+   */
+  async writeToFile(file) {
+    if (this.data !== undefined) {
+      return file.write(this.data.toBuffer());
+    } else {
+      // no bytes written... wasn't necessary
+      return 0; 
+    }
   }
 }
 

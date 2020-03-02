@@ -104,14 +104,17 @@ Frame.allocate = function(id, buffer) {
   return new Frame(id, 0, buffer.length, new Data(buffer));
 };
 
-/** Reads a frame from the provided file at the current position and invokes the callback
- *  with the new frame. (Might be a padding frame)
+/** Reads a frame from the provided file at the current position and returns the parsed frame.
+ *  Format: [ID(4)] [size(4)] [flags(2)] [data(size)]
+ *  The file position is moved past this frame by this call. This function will return a padding
+ *  frame if the frame starts with a NULL byte.
  *
  * @param {File} file the file object to read from
- * @param {number} mediaStart the offset at which the audio stream starts(=tagSize from ID3Tag Header)
- * @param callback(err, frame) gets called upon completion
+ * @param {number} mediaStart the offset at which the audio stream starts(=`tagSize` from ID3Tag Header)
+ * 
+ * @return {Promise<Frame>} resolves to the parsed frame at the current file position.
  */
-Frame.read = async function(file, mediaStart, callback) {
+Frame.read = async function(file, mediaStart) {
   const buffer = Buffer.alloc(Frame.headerSize);
   
   // Read first byte to check for padding
@@ -128,7 +131,7 @@ Frame.read = async function(file, mediaStart, callback) {
     file.seek(mediaStart, 'start') //Move file pos to where audio starts
 
     // Return padding frame
-    return Frame.paddingFrame(offset, paddingSize));
+    return Frame.paddingFrame(offset, paddingSize);
   } else {
     // Now that we know, that we don't have padding, we can read in the remaining frame header
     bytesRead = await file.read(buffer, 1, buffer.length-1);

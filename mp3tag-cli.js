@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const _ = require('lodash');
 
-const tag = require('./mp3tag');
+const mp3tag = require('./mp3tag');
 const File = require('./file');
 
 const out = require('./output');
@@ -38,10 +38,10 @@ let sourceFile;
 parser.defineTask('v', {
   type:'option',
   help_text: 'Verbose output'
-}, function(cb) {
+}, async function() {
   options.verbose = true;
   out.config().debug = true; // Enable debug logger
-  cb();
+  return;
 });
 
 
@@ -438,16 +438,15 @@ function showData(tagData) {
 /** This function returns an mp3tag header based on the source.
  *  If the passed source is not a string, then an empty header will be returned.
  *
- * @param source the mp3 file to read the header from
- * @param callback(err,tagData) the callback which will be called upon completion
+ * @param {string} source the mp3 file path to read the header from
  */
-function getHeader(source, callback) {
+async function getHeader(source) {
   if (typeof(source) === "string") {
     out.debug(`Loading audio file form '${source}'`);
-    tag.readHeader(source, callback);
+    mp3tag.readHeader(source, callback); //FIXME: Not async yet!
   } else {
     out.debug("No source passed, generating empty audio file");
-    process.nextTick(() => { callback(null, tag.newHeader()); });
+    process.nextTick(() => { callback(null, mp3tag.newHeader()); });
   }
 }
 

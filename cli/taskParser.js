@@ -10,7 +10,20 @@ function isTask(param) {
   return typeof(param) === 'string' && taskDefinitions[param] !== undefined;
 }
 
+
+/** @typedef {{args:number, min_args:number, max_args:number, type:string}} Options
+ */
+
+/** @typedef {(data:TaskData)=>Promise<TaskData>} ActionFn
+ */
+
 class TaskDefinition {
+
+  /** 
+   * @param {string} key the task key, which is used to identify the task when parsing cmd args
+   * @param {Options} options the task's type and parameter options
+   * @param {ActionFn} action the task function to execute
+   */
   constructor(key, options, action) {
     this.key = key;
     this.options = this.verifyOptions(options);
@@ -53,7 +66,7 @@ class TaskDefinition {
    *  If fieldSize is given, then the string is filled up with spaces until it reaches the length.
    */
   to_string(fieldSize) {
-    var result = '  --' + this.key;
+    let result = '  --' + this.key;
     if (typeof(this.options.arg_display) === 'string') {
       result += ' ' + this.options.arg_display;
     }
@@ -84,15 +97,13 @@ class Task extends TaskDefinition {
   }
 
   /** Executes this task with the current arguments
+   * 
+   * @param {TagData?} data the optional data to pass to the task
+   * 
+   * @return {Promise<TagData>} resolves to the result of the task's action
    */
-  run(object, callback) {
-    process.nextTick(() => {
-      if (this.type === 'option' || this.type === 'source' || this.type === 'help') {
-        this.action(callback); // Only a completion callback
-      } else {
-        this.action(object, callback); // Argument and callback
-      }
-    });
+  run(data) {
+    return this.action(data);
   }
  
 
@@ -101,7 +112,7 @@ class Task extends TaskDefinition {
    *  Everything, which is not a task keyword itself, can be passed as argument
    *  to the task.
    *
-   * @param argv the argument list (excluding the task itself)
+   * @param {string[]} argv the argument list (excluding the task itself)
    */
   readArgs(argv) {
     //Read min_args amount of arguments
@@ -132,10 +143,10 @@ var module = module.exports = {};
 /** Define a task with the set of options and an action. The task is then added to the list
  *  of known tasks
  *
- * @param key the key, which identifies the task (eg. 'in' to use --in)
- * @param options {min_args,args,max_args,type(option,source,read,write,sink,help)}
- * @param action(object,cb(err,obj)) the action to execute... 
- *                 Source don't receive an object, but return one and
+ * @param {string} key the key, which identifies the task (eg. 'in' to use --in)
+ * @param {Options} options task's type and argument options
+ * @param {ActionFn} action the action to execute... 
+ *                 Source actions don't receive an object, but return one and
  *                 Sinks receive an object, but don't return anything                
  *                 options don't receive and don't return anything
  */
@@ -144,8 +155,12 @@ module.defineTask = function(key, options, action) {
 };
 
 /** Run method, which should be used to start the process
+ * 
+ * @param {string[]} argv the command line arguments passed to the script excluding the script call itself.
+ * 
+ * @return {Promise<void>} resolves once, all tasks have completed
  */
-module.run = function(argv, callback) {
+module.run = async function(argv) {
   let tasks = [];
 
   while(argv.length > 0) {
@@ -158,10 +173,6 @@ module.run = function(argv, callback) {
       throw new Error("Passed unknown task '" + key + "' as argument.");
     }
   }
-
-  // Completion function
-  const done = function(err,res) { if (typeof(callback) === 'function') callback(err,res); };
-
 
   // Validate and execute task list
   if (tasks.length == 0) {
@@ -205,35 +216,20 @@ module.run = function(argv, callback) {
   }
 
   let data; // The data to manipulate (gets set by the source task)
-  // Callback to execute next task
-  const nextTask = function nextTask(err) {
-    // Error occurred, return it to the calling callback
-    if (err) {
-      return done(err);
+
+  // Now execute all tasks in order
+  for (const task of tasks) {
+    if (task.type === 'source') {
+      // source task will set the data to pass to the following tasks
+      data = await task.run();
+    } else {
+      // for all other tasks the current data is just passed in and the result ignored
+      await task.run(data);
     }
-
-    if (tasks.length > 0) {
-      const task = tasks.shift(); // Take next task from list
-      if (task.type !== 'source') {
-        return task.run(data, nextTask);
-      }
-
-      return task.run(null, (err, res) => {
-        if (err) {
-          return done(err);
-        }
-
-        data = res; // Set the source task's result as new data
-        nextTask(); // Continue task execution
-      });
-    } 
-      
-    // Call callback on completion
-    return done();
   }
 
-
-  nextTask();
+  // All tasks processed
+  return;
 }
 
 const categories = [
@@ -249,7 +245,7 @@ const categories = [
 module.defineTask('help', {
   help_text: 'Display this help text',
   type:'help'
-}, function(cb) {
+}, async function() {
   //Calculate necessary field size
   const fieldSize = _.max(_.map(taskDefinitions, (task) => { return task.to_string().length; } ));
   fieldSize += 5 //Some additional space between the argument and it's description
@@ -270,5 +266,5 @@ module.defineTask('help', {
     }
   });
 
-  cb();
+  return;
 });
