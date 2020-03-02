@@ -63,10 +63,10 @@ class Frame {
    */
   async write(file) {
     // Set correct write position for frame header
-    file.seek(this.pos-Frame.headerSize, 'start');
+    file.seek(this.pos-Frame.HEADER_SIZE, 'start');
 
     // Build frame header
-    const headerBuffer = new Buffer(Frame.headerSize);
+    const headerBuffer = Buffer.alloc(Frame.HEADER_SIZE);
     headerBuffer.write(this.id, 0, 4, 'ASCII');
     headerBuffer.writeUInt32BE(this.size, 4);
     headerBuffer.writeUInt16BE(this.flags, 8);
@@ -79,8 +79,8 @@ class Frame {
   }
 }
 
-//Constant size of frame header
-Frame.headerSize = 10;
+// Constant size of frame header
+Frame.HEADER_SIZE = 10;
 
 /** This static function returns a padding frame
  * 
@@ -115,7 +115,7 @@ Frame.allocate = function(id, buffer) {
  * @return {Promise<Frame>} resolves to the parsed frame at the current file position.
  */
 Frame.read = async function(file, mediaStart) {
-  const buffer = Buffer.alloc(Frame.headerSize);
+  const buffer = Buffer.alloc(Frame.HEADER_SIZE);
   
   // Read first byte to check for padding
   let bytesRead = await file.read(buffer, 0, 1);

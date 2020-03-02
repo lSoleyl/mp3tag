@@ -57,7 +57,7 @@ describe('File', function() {
         if (err)
           return done(err)
 
-        file.write(new Buffer(append), function(err) {
+        file.write(Buffer.from(append), function(err) {
           if (err)
             return done(err)
 
@@ -79,7 +79,7 @@ describe('File', function() {
           return done(err)
 
 
-        var buf = new Buffer(content)
+        var buf = Buffer.from(content)
 
         file.write(buf, function(err, bytes) {
           if (err)
@@ -101,12 +101,12 @@ describe('File', function() {
           return done(err)
 
 
-        var buffer = new Buffer(content[0])
+        var buffer = Buffer.from(content[0])
         file.write(buffer, function(err) {
           if (err)
             return done(err)
 
-          buffer = new Buffer(content[1])
+          buffer = Buffer.from(content[1])
           file.write(buffer, function(err) {
             if (err)
               return done(err)

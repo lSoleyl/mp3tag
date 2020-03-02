@@ -119,7 +119,7 @@ class Task extends TaskDefinition {
     while (this.args.length < this.options.min_args) {
       var param = argv[0];
       if (isTask(param)) {
-        throw new Error("Not enough arguments found for '" + this.key + "' task");
+        throw new Error(`Not enough arguments found for '${this.key}' task`);
       }
 
       this.args.push(param);
@@ -138,7 +138,7 @@ class Task extends TaskDefinition {
 
 
 // Define module
-var module = module.exports = {};
+module = module.exports = {};
 
 /** Define a task with the set of options and an action. The task is then added to the list
  *  of known tasks
@@ -176,7 +176,7 @@ module.run = async function(argv) {
 
   // Validate and execute task list
   if (tasks.length == 0) {
-    tasks.push(taskDefinitions['--help']); // Execute help if no commands are passed
+    tasks.push(new Task(taskDefinitions['--help'])); // Execute help if no commands are passed
   }
 
   let sourceTask;
@@ -185,7 +185,7 @@ module.run = async function(argv) {
 
   //Special case... ignore all other tasks if help is specified
   if (_.some(tasks, (task) => { return task.type === 'help'; })) {
-    tasks = [ taskDefinitions['--help'] ];
+    tasks = [ new Task(taskDefinitions['--help']) ];
   } else {
     //Ensure that we have exactly one source and at most one sink.
     const catTasks = _.groupBy(tasks, (task) => { return task.type; });
@@ -229,7 +229,6 @@ module.run = async function(argv) {
   }
 
   // All tasks processed
-  return;
 }
 
 const categories = [
@@ -241,19 +240,19 @@ const categories = [
   {key:'sink', description:'File target commands (save)'}
 ];
 
-//Define help-task
+// Define help-task
 module.defineTask('help', {
   help_text: 'Display this help text',
   type:'help'
 }, async function() {
-  //Calculate necessary field size
-  const fieldSize = _.max(_.map(taskDefinitions, (task) => { return task.to_string().length; } ));
-  fieldSize += 5 //Some additional space between the argument and it's description
+  // Calculate necessary field size
+  let fieldSize = _.max(_.map(taskDefinitions, (task) => { return task.to_string().length; } ));
+  fieldSize += 5; // Some additional space between the argument and it's description
 
-  //Group all commands by category
+  // Group all commands by category
   const cat_commands = _.groupBy(taskDefinitions, (task) => { return task.type; });
 
-  //Display all commands, ordered by category
+  // Display all commands, ordered by category
   _.each(categories, (cat) => {
     if (cat_commands[cat.key] !== undefined && cat_commands[cat.key].length > 0) {
       console.log(cat.description + ':')
@@ -265,6 +264,4 @@ module.defineTask('help', {
       console.log('\n');
     }
   });
-
-  return;
 });

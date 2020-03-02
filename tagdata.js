@@ -165,7 +165,7 @@ class TagData {
   realignFrames() {
     let pos = TagData.TAG_HEADER_SIZE; // Starting position
     for (const frame of this.frames) {
-      pos += Frame.headerSize; // move position to start of data
+      pos += Frame.HEADER_SIZE; // move position to start of data
       
       // Move frame to correct position
       frame.pos = pos;
@@ -323,8 +323,7 @@ class TagData {
    * @return {Promise<void>} gets resolved if the file has been successfully written.
    */
   async writeToFile(path) {
-    const self = this;
-    const sameFile = (self.audioData.source.name === path);
+    const sameFile = (this.audioData.source.name === path);
 
     // No change & same file -> no write necessary
     if (sameFile && !this.dirty) {
@@ -372,7 +371,7 @@ class TagData {
     }
 
     // Write padding (generate a buffer filled with 0x00)
-    const padding = Buffer.alloc(self.padding.size, 0x00);
+    const padding = Buffer.alloc(this.padding.size, 0x00);
     await file.write(padding);
 
     // Write footer (if any)
