@@ -367,7 +367,7 @@ class TagData {
 
     // Write frames
     for (const frame of this.frames) {
-      await frame.write(file); //FIXME: does this actually work!?
+      await frame.write(file);
     }
 
     // Write padding (generate a buffer filled with 0x00)

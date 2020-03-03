@@ -10,6 +10,15 @@ const _ = require('lodash');
 const Data = require('./data');
 
 
+/** @typedef {{language:string,short:string,long:string}} Comment
+ */
+
+/** @typedef {{email:string,rating:number,playCount:number}} Popularity
+ */
+
+/** @typedef {{mimeType:string, pictureType:integer, description:string, pictureData:Data}} Picture
+ */
+
 class Encoding {
   /**
    * @param {string} name the name of the encoding
@@ -75,7 +84,7 @@ class Decoder {
    *
    * @param {Buffer} buffer the buffer of the comment frame to decode
    *
-   * @return the decoded comment object
+   * @return {Comment} the decoded comment object
    */
   decodeComment(buffer) {
     if (!(buffer instanceof Buffer)) {
@@ -107,9 +116,9 @@ class Decoder {
 
   /** Encodes the given comment object back into a buffer
    *  
-   * @param comment a comment object {language,short,long}
+   * @param {Comment} comment the comment object to encode
    * 
-   * @return the encoded buffer
+   * @return {Buffer} the encoded buffer
    */
   encodeComment(comment) {
     const encoding = DEFAULT_ENCODINGS[this.version];
@@ -132,7 +141,7 @@ class Decoder {
    *
    * @param {Buffer} buffer the buffer to decode the popularity from
    *
-   * @return {email:string,rating:number,playCount:number} the decoded popularity
+   * @return {Popularity} the decoded popularity
    */
   decodePopularity(buffer) { 
                                       //v-- no unicode support for email
@@ -151,7 +160,7 @@ class Decoder {
   /**
    * @param {Buffer} buffer the buffer to decode the buffer from
    * 
-   * @return the pictue object
+   * @return {Picture} the pictue object
    */
   decodePicture(buffer) {
     if (!(buffer instanceof Buffer)) {

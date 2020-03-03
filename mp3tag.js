@@ -18,8 +18,8 @@ module.exports = {
    * 
    * @return {Promise<TagData>} resolves to the parsed tag data
    */
-  readHeader: function(path,callback) { 
-    return readID3v2(path,callback);
+  readHeader: function(path) { 
+    return readID3v2(path);
   },
 
   /** Returns an empty mp3 tag header
@@ -35,7 +35,7 @@ module.exports = {
  * 
  * @return {Promise<TagData>} resolves to the parsed tag data
  */
-async function readID3v2(path, callback) {
+async function readID3v2(path) {
   const file = await File.open(path, "r");
 
   const header = Buffer.alloc(TagData.TAG_HEADER_SIZE);
