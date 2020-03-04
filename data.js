@@ -15,7 +15,7 @@ class Data {
     if (source instanceof Buffer) {
       dataSize = source.length;
     } else {
-      throw new Error("Source must be either a Buffer");
+      throw new Error("Source must be a Buffer");
     }
 
     this.offset = offset || 0;

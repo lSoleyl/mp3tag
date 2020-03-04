@@ -4,9 +4,17 @@
 
 *Tagless files are also not yet supported.*
 
-File format reference: http://id3.org/id3v2.3.0
+Detailed information about the meaning of certain frame fields/flags can be found in the file format reference at: http://id3.org/id3v2.3.0 
 
 ## Basic CLI usage
+
+Installation: (Not yet published to npm)
+
+    git clone https://github.com/lSoleyl/mp3tag.git
+    cd mp3tag
+    npm install
+    sudo npm link
+
 
 Help command:
 
@@ -98,12 +106,15 @@ The decoded popularity object has the following fields:
  * `rating:number` - Rating value [0-255]
  * `playCount:number` - Number of times this has been played.
 
- This is encoded in the `POPM` frame.
+ The popularity object is stored in the `POPM` frame.
 
  ### `Decoder.decodePicture(buffer:Buffer) -> Picture`
- The decoded 
+ The decoded picture object contains the following properties:
 
- The is encoded in the `APIC` frame.
+  * `mimeType:string`
+  * `pictureType:number` 
+  * `description:string`
+  * `pictureData:Data` - a reference to the picture's data, which is basically a `Buffer` wrapper. The buffer can be retrieved by calling `toBuffer()` on it.
 
+The picture is stored in the `APIC` frame.
 
-*TODO...*
