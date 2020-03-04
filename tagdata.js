@@ -438,10 +438,16 @@ class AudioData {
 TagData.TAG_HEADER_SIZE = 10;
 TagData.TAG_FOOTER_SIZE = 10;
 
-/** This function creates an empty TagData structure. 
+/** This function creates an empty tag with no frames and the audio data references the whole file.
+ * 
+ * @param {File} audioFile the file containing only the audio data
+ * 
+ * @return {TagData} the empty header object
  */
-TagData.empty = function() {                                             //Empty padding starts directly after header
-  return new TagData(undefined, {major:3, minor:0}, 0, TagData.TAG_HEADER_SIZE, [], {offset:TagData.TAG_HEADER_SIZE, size:0}, new Data(Buffer.alloc(0)));
+TagData.noHeader = function(audioFile) {
+  // We must set the size to the TAG_HEADER_SIZE and padding start correctly or else writing this empty
+  // header into a new file will fail.
+  return new TagData(audioFile, {major:3, minor:0}, 0/*flags*/, TagData.TAG_HEADER_SIZE/*size*/, [], {offset:TagData.TAG_HEADER_SIZE, size:0}, new DataSource(audioFile));
 };
 
 // export class

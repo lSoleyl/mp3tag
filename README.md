@@ -2,8 +2,6 @@
 
 *This library is not a complete implementation for all ID3 tags. It has basic support for the most common v2.3 and v2.4 features. More advanced features, like frame encryption are not yet supported.*
 
-*Tagless files are also not yet supported.*
-
 Detailed information about the meaning of certain frame fields/flags can be found in the file format reference at: http://id3.org/id3v2.3.0 
 
 ## Basic CLI usage

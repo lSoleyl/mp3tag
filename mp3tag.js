@@ -20,13 +20,7 @@ module.exports = {
    */
   readHeader: function(path) { 
     return readID3v2(path);
-  },
-
-  /** Returns an empty mp3 tag header
-   * 
-   * @return {TagData} empty mp3 tag header
-   */
-  newHeader: function() { return TagData.empty(); }
+  }
 };
 
 /** Reads the id3v2 tag data from the provided file. 
@@ -54,8 +48,8 @@ async function readID3v2(path) {
   let headerSize = encoding.decodeUInt7Bit(header.readUInt32BE(6)) + TagData.TAG_HEADER_SIZE;
 
   if (marker !== "ID3") { //No header at all
-    throw new Error("No support for tagless files yet!");
-    //TODO create empty header or something like this
+    // Simply return an empty dummy header that won't be written unless a frame gets created
+    return TagData.noHeader(file);
   } else {
     // This library supports v2.3 and v2.4 (though 2.4 is not yet complete)
     let hasFooter = false;

@@ -52,7 +52,7 @@ parser.defineTask('v', {
 
  //Sources
 parser.defineTask('in', {
-  max_args:1,
+  args:1,
   type:'source',
   arg_display:'[filename]',
   help_text: 'The source file to read. If not set, an empty file will be generated.'
@@ -413,8 +413,7 @@ async function getHeader(source) {
     out.debug(`Loading audio file form '${source}'`);
     return await mp3tag.readHeader(source);
   } else {
-    out.debug("No source passed, generating empty audio file");
-    return mp3tag.newHeader();
+    throw new Error('No source file passed to load the audio from');
   }
 }
 
