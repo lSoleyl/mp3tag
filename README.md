@@ -55,8 +55,8 @@ Reads in the source file at the specified path and returns a promise, which reso
 
 All frames are loaded into memory when constructing this object so that the frame content can be read/written without performing any File-IO.
 
-### `TagData.decoder -> Decoder`
-This field contains the `Decoder` object, which can be used to decode/encode the binary frame buffers.
+### `TagData.getDecoder() -> Decoder`
+Returns the `Decoder` object, which can be used to decode/encode the binary frame buffers.
 
 ### `TagData.getFrame(id:string) -> Frame`
 If the parsed file contains a frame with the given `id` then it is returned. When accessing the Frame's content, `getFrameBuffer()`/`setFrameBuffer()` should be used instead.
@@ -79,6 +79,9 @@ Assigns the given `Buffer` object as the frame's new content. The frame will be 
 
 ### `TagData.removeFrame(id:string)`
 Removes all frames with the given `id`.
+
+### `TagData.getAudioBuffer() -> Promise<Buffer>`
+Loads the whole audio data from the file into a `Buffer` and returns a promise, which resolves to this buffer.
 
 ### `TagData.save() -> Promise<void>`
 Writes all changes back into the source file. When writing back the changes, the file's padding area resized to accomodate all changes without rewriting the audio data if possible.

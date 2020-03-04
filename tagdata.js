@@ -307,6 +307,23 @@ class TagData {
     return file.write(footer);
   }
 
+  /** Basically a getter for the decoder property
+   * 
+   * @return {Decoder} the used decoder instance for this tag
+   */
+  getDecoder() {
+    return this.decoder;
+  }
+
+  /** Reads the audio data from the file into a buffer and returns it.
+   * 
+   * @return {Promise<Buffer>} resolves to the buffer containing the file's audio data
+   */
+  async getAudioBuffer() {
+    const data = await this.audioData.toData();
+    return data.toBuffer();
+  }
+
   /** This method will write the content into a file (overwriting existing files) and 
    *  will place a padding area of 1024 bytes after the header. If the file to write into
    *  equals the source file for this tag's audiodata, then it tries to only update the tags itself.
