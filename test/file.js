@@ -1,131 +1,88 @@
 /** Test for File class
  */
-var File = require('../file')
-var fs = require('fs')
-var os = require('os')
-var path = require('path')
-var should = require('chai').should()
+const File = require('../file');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+require('chai').should();
 
 
 describe('File', function() {
   
-  var filePath = path.join(os.tmpdir(), 'writeTest.txt');
+  const filePath = path.join(os.tmpdir(), 'writeTest.txt');
 
   beforeEach(function() {
-    if (fs.existsSync(filePath))
-      fs.unlinkSync(filePath)
-  })
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  });
 
   describe('openFile(w)', function() {
-    it('should create a new file if it doesn\'t exist', function(done) {
-      File.open(filePath, "w", function(err, file) {
-        if (err)
-          return done(err)
+    it('should create a new file if it doesn\'t exist', async function() {
+      const file = await File.open(filePath, "w");
+      file.close();
 
-        file.close()
-        fs.existsSync(filePath).should.equal(true)
-        done()
-      })
-    })
-  })
+      fs.existsSync(filePath).should.equal(true);
+    });
+  });
 
   describe('openFile(a)', function() {
-    var content = "Test content"
+    const content = "Test content";
 
-    it('should not clear the file on open', function(done) {
-      //Create file with content in it
-      fs.writeFileSync(filePath, content)
+    it('should not clear the file on open', async function() {
+      // Create file with content in it
+      fs.writeFileSync(filePath, content);
 
-      File.open(filePath, "a", function(err, file) {
-        if (err)
-          return done(err)
+      const file = await File.open(filePath, "a");
+      file.close();
+      
+      fs.readFileSync(filePath).toString().should.equal(content);
+    });
 
-        file.close()
-        fs.readFileSync(filePath).toString().should.equal(content)
-        done() 
-      })
-    })
+    it('should start writing at the beginning of the file', async function() {
+      const append = "xxxx";
+      const result = "xxxx content";
 
-    it('should start writing at the beginning of the file', function(done) {
-      var append = "xxxx"
-      var result = "xxxx content"
+      // Create file with content in it
+      fs.writeFileSync(filePath, content);
 
-      //Create file with content in it
-      fs.writeFileSync(filePath, content)
+      const file = await File.open(filePath, "a");
 
-      File.open(filePath, "a", function(err, file) {
-        if (err)
-          return done(err)
+      await file.write(Buffer.from(append));
+      file.close();
 
-        file.write(Buffer.from(append), function(err) {
-          if (err)
-            return done(err)
-
-          file.close()
-
-          fs.readFileSync(filePath).toString().should.equal(result)
-          done()
-        })
-      })
-    })
-  })
+      fs.readFileSync(filePath).toString().should.equal(result);
+    });
+  });
 
   describe('writeFile', function() {
-    var content = "Hello Buffers!"
+    const content = "Hello Buffers!";
 
-    it("should start writing at the file's beginning", function(done) {
-      File.open(filePath, "w", function(err, file) {
-        if (err)
-          return done(err)
+    it("should start writing at the file's beginning", async function() {
+      const file = await File.open(filePath, "w");
 
+      const buf = Buffer.from(content);
 
-        var buf = Buffer.from(content)
+      const bytes = await file.write(buf);
+      file.close();
 
-        file.write(buf, function(err, bytes) {
-          if (err)
-            return done(err)
+      bytes.should.equal(buf.length);
+      fs.readFileSync(filePath).toString().should.equal(content);
+    });
 
-          file.close()
-          bytes.should.equal(buf.length)
-          fs.readFileSync(filePath).toString().should.equal(content)
-          done()
-        })
-      })
-    })
+    it("should continue writing where it left off, when writing multiple times", async function() {
+      const content = [ "This is the first part\n", "This is the last part" ];
 
-    it("should continue writing where it left off, when writing multiple times", function(done) {
-      var content = [ "This is the first part\n", "This is the last part" ] 
-
-      File.open(filePath, "w", function(err, file) {
-        if (err)
-          return done(err)
-
-
-        var buffer = Buffer.from(content[0])
-        file.write(buffer, function(err) {
-          if (err)
-            return done(err)
-
-          buffer = Buffer.from(content[1])
-          file.write(buffer, function(err) {
-            if (err)
-              return done(err)
-
-            file.close()
-
-            fs.readFileSync(filePath).toString().should.equal(content.join(""))
-            done()
-          })
-        })
-      })
-    })
-  })
-
-
-
-
-
-
-
-})
+      const file = await File.open(filePath, "w");
+      
+      // perform consecutive two writes
+      for (const line of content) {
+        await file.write(Buffer.from(line));
+      }
+      
+      file.close();
+      fs.readFileSync(filePath).toString().should.equal(content.join(""));
+    });
+  });
+});
 
