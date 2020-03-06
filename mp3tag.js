@@ -1,5 +1,4 @@
 //External dependencies
-const async = require('async');
 const _ = require('lodash');
 
 //Utilities
