@@ -4,15 +4,13 @@
 
 Detailed information about the meaning of certain frame fields/flags can be found in the file format reference at: http://id3.org/id3v2.3.0 
 
+Check out [retagger](https://github.com/lSoleyl/retagger) for an example project on how to use this library.
+
 ## Basic CLI usage
 
-Installation: (Not yet published to npm)
+Installation: 
 
-    git clone https://github.com/lSoleyl/mp3tag.git
-    cd mp3tag
-    npm install
-    sudo npm link
-
+    npm install -g mp3tag
 
 Help command:
 
@@ -35,6 +33,12 @@ Setting a new album and writing the changes into a new file: \
 
 
 ## Basic API usage (using async/await)
+
+Install dependency:
+
+    npm install --save mp3tag
+
+Code example:
 
     const mp3tag = require('mp3tag');
     const tagData = mp3tag.readHeader('./file.mp3');
