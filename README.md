@@ -52,7 +52,7 @@ Code example:
 
 ## API
 
-### `mp3tag.readData(path:string) -> Promise<TagData>`
+### `mp3tag.readHeader(path:string) -> Promise<TagData>`
 Reads in the source file at the specified path and returns a promise, which resolves to the parsed `TagData` object.
 
 All frames are loaded into memory when constructing this object so that the frame content can be read/written without performing any File-IO.
