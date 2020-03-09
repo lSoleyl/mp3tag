@@ -41,7 +41,7 @@ Install dependency:
 Code example:
 
     const mp3tag = require('mp3tag');
-    const tagData = mp3tag.readHeader('./file.mp3');
+    const tagData = mp3tag.parseFile('./file.mp3');
 
     const buffer = tagData.getBuffer('TALB');
     if (buffer) {
@@ -52,10 +52,13 @@ Code example:
 
 ## API
 
-### `mp3tag.readHeader(path:string) -> Promise<TagData>`
+### `mp3tag.parseFile(path:string) -> Promise<TagData>`
 Reads in the source file at the specified path and returns a promise, which resolves to the parsed `TagData` object.
 
 All frames are loaded into memory when constructing this object so that the frame content can be read/written without performing any File-IO.
+
+### `mp3tag.parseBuffer(buffer:Buffer) -> Promise<TagData>`
+Same as above, but will read the id3 tag data from the provided `Buffer` instead. `TagData.save()` doesn't yet work properly for files read from a `Buffer` as it will just write into a file 
 
 ### `TagData.getDecoder() -> Decoder`
 Returns the `Decoder` object, which can be used to decode/encode the binary frame buffers.

@@ -217,8 +217,12 @@ class TagData {
    * @return {Promise<void>} A promise that gets resolved once the file has been written.
    */
   async save() {
-    if (!this.file) {
-      throw new Error("This tag data has no source file!"); // Is true for generated headers
+    if (this.file.name === undefined) {
+      // mp3tag.parseBuffer() will have no source file name. If we don't handle this here
+      // then the save routine would try to create a file with the name 'undefined'.
+      //TODO: implement proper save() method for buffer sources
+      //TODO: implement a writeToBuffer() method
+      throw new Error("save() isn't supported TagData parsed from a buffer yet!");
     }
 
     return this.writeToFile(this.file.name);

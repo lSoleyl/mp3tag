@@ -10,6 +10,7 @@ class File {
     this.pos = 0;
     this.size = size;
   }
+
   /** Read data from file at the current file position into the passed buffer
    * 
    * @param {Buffer} buffer the buffer to read into
@@ -69,39 +70,38 @@ class File {
    * @return {(buffer:Buffer, offset:number, length:number)=>Promise<number>} 
    */
   bufferWriter() {
-    return File.prototype.writeSlice.bind(this);
+    return Object.getPrototypeOf(this).writeSlice.bind(this);
   }
 
 
   /** This function accepts a file offset and a length and
-   *  reads out the data as buffer.
+   *  reads out the data into a newly allocated buffer.
    *
    * @param {number} offset the file offset to start reading
    * @param {number} length the length of the data to read
-   * @param callback(err,buff) optional callback to receive the result.
-   *          reading less then length bytes is also treated as error.
-   * 
+   *
    * @return {Promise<Buffer>} a promise that resolves to the read buffer
    */
-  readSlice(offset, length, callback) {
-    return new Promise((resolve, reject) => {
-      const buffer = Buffer.alloc(length);
-      if (length === 0) {
-        return process.nextTick(() => { callback ? callback(null, buffer) : resolve(buffer); });
-      }
+  async readSlice(offset, length) {
+    const buffer = Buffer.alloc(length);
+    if (length === 0) {
+      return buffer;
+    }
+    
+    // Change read position for the next read
+    const oldPos = this.pos;
+    this.pos = offset;
 
-      fs.read(this.fd, buffer, 0, length, offset, (err, bytes, buffer) => {
-        if (err) {
-          return callback ? callback(err) : reject(err);
-        }
-        if (bytes !== length) { //TODO create a type for this kind of error to handle it programatically
-          err = new Error(`File end reached. Only ${bytes} were read instead of ${length}`);
-          return callback ? callback(err) : reject(err);
-        }
+    // Call the underlying read() function and restore the previous read position
+    const bytesRead = await this.read(buffer, 0, length).finally(() => { this.pos = oldPos; });
 
-        callback ? callback(null, buffer) : resolve(buffer);
-      });
-    });    
+    if (bytesRead !== length) {
+      //TODO: create a type for this kind of error to handle it programatically
+      throw new Error(`File end reached. Only ${bytesRead} were read instead of ${length}`);
+    }
+
+    // Successfully read data
+    return buffer;
   }
 
   /** Sets the file position further by the specified amount of bytes, relative to
@@ -118,7 +118,9 @@ class File {
   /** Closes the file
    */
   close() {
-    fs.close(this.fd, () => {});
+    if (this.fd) {
+      fs.close(this.fd, () => {});
+    }
     this.fd = undefined;
     this.pos = undefined;
   }

@@ -1,36 +1,61 @@
-//External dependencies
+// External dependencies
 const _ = require('lodash');
 
-//Utilities
+// Utilities
 const encoding = require('./encoding');
 
-//Classes
+// Classes
 const File = require('./file');
+const BufferFile = require('./bufferFile');
 const TagData = require('./tagdata');
 const Frame = require('./frame');
 
 
-module.exports = {
+const mp3tag = {  
   /** Reads the id3v2 tag data from the provided file.
+   * 
+   * @param {string} path the file path to read the tagdata from
+   *
+   * @return {Promise<TagData>} resolves to the parsed tag data
+   */
+  parseFile: async function(path) {
+    const file = await File.open(path, 'r');
+    return readID3v2(file);
+  },
+
+
+  /** Reads the id3v2 tag data form the provided buffer.
+   * 
+   * @param {Buffer} buffer the buffer to parse the mp3 tag data from
+   */
+  parseBuffer: function(buffer) {
+    const file = new BufferFile(buffer);
+    return readID3v2(file);
+  },
+
+
+  /** Reads the id3v2 tag data from the provided file.
+   * 
+   * @deprecated use parseFile() instead
    * 
    * @param {string} path the file path to read the tagdata from
    * 
    * @return {Promise<TagData>} resolves to the parsed tag data
    */
   readHeader: function(path) { 
-    return readID3v2(path);
+    return mp3tag.parseFile(path);
   }
 };
 
+module.exports = mp3tag;
+
 /** Reads the id3v2 tag data from the provided file. 
  * 
- * @param {string} path the filepath to read the tag data from
+ * @param {File} file the file (may be a BufferFile) to read from
  * 
  * @return {Promise<TagData>} resolves to the parsed tag data
  */
-async function readID3v2(path) {
-  const file = await File.open(path, "r");
-
+async function readID3v2(file) {
   const header = Buffer.alloc(TagData.TAG_HEADER_SIZE);
   const bytesRead = await file.read(header, 0, header.length); // Read 10 Byte header
 
