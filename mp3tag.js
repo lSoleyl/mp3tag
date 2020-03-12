@@ -27,6 +27,8 @@ const mp3tag = {
   /** Reads the id3v2 tag data form the provided buffer.
    * 
    * @param {Buffer} buffer the buffer to parse the mp3 tag data from
+   
+   * @return {Promise<TagData>} resolves to the parsed tag data
    */
   parseBuffer: function(buffer) {
     const file = new BufferFile(buffer);

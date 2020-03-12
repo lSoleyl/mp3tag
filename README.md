@@ -75,15 +75,20 @@ Directly returns the frame content as `Buffer`. The frame's buffer should only b
 The binary frame content of text frames can be decoded as follows:
 `tagData.decoder.decodeString(buffer)`
 
-
 ### `TagData.getFrameBuffers(id:string) -> Buffer[]`
 Same as `getFrameBuffer()` but may return multiple `Buffer` objects if there are multiple Frames with the same `id`.
+
+### `TagData.getFileSize() -> number`
+Returns the total size (header + frames + padding or footer + audio data) of the file, which would be written by `writeToFile()`.
 
 ### `TagData.setFrameBuffer(id:string, buffer:Buffer)`
 Assigns the given `Buffer` object as the frame's new content. The frame will be created if the has no such frame and the frame will be resized to fit the passed buffer. The buffer is only assigend by reference and not copied, so modifying the assigned buffer will modify the frame's content.
 
 ### `TagData.removeFrame(id:string)`
 Removes all frames with the given `id`.
+
+### `TagData.removePadding()`
+Removes all unused padding data from the mp3 tag data and thus shrinks the size of the generated output file. If the padding area is removed, `save()` will need to rewrite the file.
 
 ### `TagData.getAudioBuffer() -> Promise<Buffer>`
 Loads the whole audio data from the file into a `Buffer` and returns a promise, which resolves to this buffer.
@@ -92,7 +97,10 @@ Loads the whole audio data from the file into a `Buffer` and returns a promise, 
 Writes all changes back into the source file. When writing back the changes, the file's padding area resized to accomodate all changes without rewriting the audio data if possible.
 
 ### `TagData.writeToFile(path:string) -> Promise<void>`
-Writes the change frames and audio data into the specified file.
+Writes the changed frames and audio data into the specified file.
+
+### `TagData.writeToBuffer() -> Promise<Buffer>`
+Writes the changed frames and audio data into a newly allocated buffer.
 
 ### `Decoder.decodeString(buffer:Buffer) -> string`
 Decodes the content of text frames. The buffer's first byte specifies the used buffer encoding and the remaining bytes are treated as string content.

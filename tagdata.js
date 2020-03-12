@@ -34,6 +34,7 @@ class TagData {
    * @param {DataSource} audioData location of the audio data in this mp3 file
    */
   constructor(file, version, flags, size, frames, padding, audioData) {
+    //TODO: close this file after it isn't needed anymore 
     this.file = file;        //File read from
     this.version = version;  //version tuple {'major','minor'}
     this.flags = flags;      //flags field from the header
@@ -122,6 +123,18 @@ class TagData {
     this.realignFrames(); // Realign all frames after a frame got deleted
   }
 
+  /** This method may be called to compact the tag header as much as possible by removing the 
+   *  unused padding area. This will however require a rewrite of the file in `save()`.
+   */
+  removePadding() {
+    if (this.padding.size > 0) {
+      this.size -= this.padding.size;
+      this.padding.size = 0;
+      this.rewrite = true;
+      this.dirty = true;
+    }
+  }
+
   /** This method will return the frame with the given id, and change it's size
    *  to fit the passed buffer. If the frame doesn't exist, it will be created.
    *  The passed buffer will be set as new data.
@@ -184,6 +197,12 @@ class TagData {
       this.size += this.padding.size*(-1); // Tag's size has just increased 
       this.rewrite = true; // Audiodata must be moved
       this.padding.size = 0;
+    } else if (this.padding.size > 0 && this.hasFooter) {
+      // Footer check (we don't want to write the footer if we have included padding)
+      // remove footer, add it's size to the padding and disable the flag
+      this.hasFooter = false;
+      this.padding.size += TagData.TAG_FOOTER_SIZE;
+      this.flags &= ~0x10;
     }
   }
 
@@ -217,27 +236,29 @@ class TagData {
    * @return {Promise<void>} A promise that gets resolved once the file has been written.
    */
   async save() {
-    if (this.file.name === undefined) {
+    if (this.file.buffer !== undefined) {
       // mp3tag.parseBuffer() will have no source file name. If we don't handle this here
       // then the save routine would try to create a file with the name 'undefined'.
-      //TODO: implement proper save() method for buffer sources
-      //TODO: implement a writeToBuffer() method
-      throw new Error("save() isn't supported TagData parsed from a buffer yet!");
+
+      // No need to write back into an unchanged buffer. This is checked before the size check because
+      // tagless files are parsed into TagData without `dirty=false` and `size=TAG_HEADER_SIZE`. Without 
+      // this check here we couldn't save back an unchanged tagless file.
+      if (!this.dirty) {
+        return;
+      }
+      
+      // We can only write back into the same buffer if the file size didn't change.
+      // Tagless files are handled above.
+      if (this.getFileSize() !== this.file.buffer.length) {
+        throw new Error("Cannot save TagData back into source buffer beause the file size has changed.");
+      }
+
+      // We can simply reuse the BufferFile in `this.file` because this class provides an r/w file 
+      // abstraction for the buffer.
+      return this.__writeIntoFile(this.file, true);
     }
 
     return this.writeToFile(this.file.name);
-  }
-  
-  /** Checks whether the footer should better be disabled based on a used padding
-   */
-  checkFooter() {
-    // Footer processing (we don't want to write the footer if we have included padding)
-    if (this.hasFooter && this.padding.size > 0) {
-      // remove footer, add it's size to the padding and disable the flag
-      this.hasFooter = false;
-      this.padding.size += TagData.TAG_FOOTER_SIZE;
-      this.flags &= ~0x10;
-    }
   }
 
   /** Returns the size of the tag's content not counting header and footer, but padding is included.
@@ -255,6 +276,20 @@ class TagData {
     return size;
   }
 
+  /** Returns the file size in bytes for the whole tag header + frames + (padding || footer) + audio data
+   * 
+   * @return {number} the total file size in bytes
+   */
+  getFileSize() {
+    let fileSize = this.size;
+    if (this.hasFooter) {
+      fileSize += TagData.TAG_FOOTER_SIZE;
+    }
+
+    fileSize += this.audioData.size;
+    return fileSize;
+  }
+
   /** This method will write the id3 tag header into the given file. At the correct offset.
    *  This will not write the frames.
    *
@@ -264,9 +299,6 @@ class TagData {
    *                           be equal to TagData.TAG_HEADER_SIZE
    */
   async writeTagHeader(file) {
-    // check whether we have to disable the footer to set the correct flags
-    this.checkFooter(); 
-
     const header = Buffer.alloc(TagData.TAG_HEADER_SIZE);
 
     header.asciiWrite("ID3"); // Write marker
@@ -290,8 +322,6 @@ class TagData {
    *                           or 0 if the file doesn't need / cannot have a footer (due to padding)
    */
   async writeTagFooter(file) {
-    this.checkFooter();
-
     if (!this.hasFooter) {
       // so 0 bytes have been written, but this is not an error
       return 0;
@@ -351,6 +381,55 @@ class TagData {
       return;
     }
 
+    // Open target file for writing
+    let fmode = "w";
+    if (sameFile && !this.rewrite) {
+      // Don't clear file on open
+      fmode = "a"; 
+    }
+
+    const file = await File.open(path, fmode);
+    
+    // Now write the mp3 data into the specified target file / may be the source file itself
+    await this.__writeIntoFile(file, sameFile);
+  }
+
+
+
+
+  /** This method will write the whole content of the tag data and audio content into a 
+   *  buffer large enough to hold all the data.
+   * 
+   * @param path the file's path to write into
+   *
+   * @return {Promise<Buffer>} gets resolved to the buffer written upon success
+   */
+  async writeToBuffer() {
+    // Allocate a large enough buffer to write into
+    const buffer = Buffer.alloc(this.getFileSize());
+
+    // Write into the BufferFile object
+    await this.__writeIntoFile(new BufferFile(buffer), false /*cannot be equal to source*/);
+
+    return buffer;
+  }
+
+
+  /** Private method implementing the common code for writing/saving the mp3 into 
+   *  files/buffers.
+   * 
+   * @param {File} the file/bufferFile into which the data should be written
+   * @param {boolean} writeToSource should be true fi the target file/buffer equals the source file/buffer.
+   *                                This affects whether the target file will be written at all and whether 
+   *                                dirty flag gets reset after saving.
+   */
+  async __writeIntoFile(file, writeToSource) {
+    
+    // No change & same file -> no write necessary
+    if (writeToSource && !this.dirty) {
+      return;
+    }
+
     /** This helper function will load the audio data into a buffer iff rewriting the file
      *  is necessary to prevent overwriting the audio data when writing out the tag frames.
      *  AudioData.writeToFile() should be called on the returned object to write the buffered
@@ -360,7 +439,7 @@ class TagData {
      */ 
     const getAudioData = async () => {
       // We don't have to write audio if a rewrite isn't necessary and we write into the same file
-      if (sameFile && !this.rewrite) {
+      if (writeToSource && !this.rewrite) {
         // AudioData.writeToFile() will be a NOP
         return new AudioData();
       } else { 
@@ -374,15 +453,10 @@ class TagData {
     // load audio data if necessary
     const audioData = await getAudioData();
 
-    // Open target file for writing
-    let fmode = "w";
-    if (sameFile && !this.rewrite) {
-      // Don't clear file on open
-      fmode = "a"; 
-    }
+    // Make sure, we start writing the target file from the start. This is currently only relevant when 
+    // saving into the source BufferFile.
+    file.seek(0, 'start');
 
-    const file = await File.open(path, fmode);
-    
     // Write the file parts in order
     await this.writeTagHeader(file);
 
@@ -402,12 +476,10 @@ class TagData {
     await audioData.writeToFile(file);
     file.close();
     
-    if (sameFile) {
+    if (writeToSource) {
       // Clear dirty flag if we have just updated the source file
       this.dirty = false;
     }
-    
-    return;
   }
 }
 
