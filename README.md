@@ -39,16 +39,17 @@ Install dependency:
     npm install --save mp3tag
 
 Code example:
+```js
+const mp3tag = require('mp3tag');
+const tagData = await mp3tag.readHeader('./file.mp3');
 
-    const mp3tag = require('mp3tag');
-    const tagData = mp3tag.readHeader('./file.mp3');
-
-    const buffer = tagData.getBuffer('TALB');
-    if (buffer) {
-      console.log("Album: " + tagData.decoder.decodeString(buffer));
-    } else {
-      console.log("No album frame");
-    }
+const buffer = tagData.getFrameBuffer('TALB');
+if (buffer) {
+  console.log("Album: " + tagData.decoder.decodeString(buffer));
+} else {
+  console.log("No album frame");
+}
+```
 
 ## API
 
