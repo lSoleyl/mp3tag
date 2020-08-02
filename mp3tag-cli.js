@@ -221,9 +221,7 @@ parser.defineTask('export-format', {
   if (format === 'json') {
     console.log(JSON.stringify(exportProperties));
   }  
-  //TODO support other formats aswell
-
-  exportProperties = {};
+  //TODO: support other formats aswell
 });
 
 parser.defineTask('show-data', {
