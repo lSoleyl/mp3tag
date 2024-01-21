@@ -51,7 +51,7 @@ class Data {
       return this.source;
     }
     
-    return this.source.slice(this.offset, this.size);
+    return this.source.subarray(this.offset, this.size);
   }
 
   toString() {

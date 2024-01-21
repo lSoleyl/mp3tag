@@ -10,13 +10,16 @@ const _ = require('lodash');
 const Data = require('./data');
 
 
-/** @typedef {{language:string,short:string,long:string}} Comment
+/** 
+ * @typedef {{language:string,short:string,long:string}} Comment
  */
 
-/** @typedef {{email:string,rating:number,playCount:number}} Popularity
+/** 
+ * @typedef {{email:string,rating:number,playCount:number}} Popularity
  */
 
-/** @typedef {{mimeType:string, pictureType:integer, description:string, pictureData:Data}} Picture
+/**
+ * @typedef {{mimeType:string, pictureType:integer, description:string, pictureData:Data}} Picture
  */
 
 class Encoding {
@@ -34,21 +37,29 @@ class Encoding {
   }
 }
 
+Encoding['ISO-8895-1'] = new Encoding('ISO-8895-1', [], false, 0x00);
+Encoding['UTF-16LE-BOM'] = new Encoding('UTF-16LE', [0xFF, 0xFE], true, 0x01);
+Encoding['UTF-16BE-BOM'] = new Encoding('UTF-16BE', [0xFE, 0xFF], true);
+Encoding['UTF-8-BOM'] = new Encoding('UTF-8', [0xEF, 0xBB, 0xBF], false);
+Encoding['UTF-8'] = new Encoding('UTF-8', [], false, 0x03);
+
 
 /** List of unicode encodings supported as text encoding
  */
 const UCEncodings = [
-  new Encoding('UTF-16LE', [0xFF, 0xFE], true, 0x01),
-  new Encoding('UTF-16BE', [0xFE, 0xFF], true),
-  new Encoding('UTF-8', [0xEF, 0xBB, 0xBF], false),
-  new Encoding('UTF-8', [], false, 0x03) // Empty bom sets the default codepage
+  Encoding['UTF-16LE-BOM'],
+  Encoding['UTF-16BE-BOM'],
+  Encoding['UTF-8-BOM'],
+  Encoding['UTF-8'] // Empty bom sets the default codepage
 ];
 
 /** Defines the default encoding for the encodeString method
+ * 
+ * @type {{[version:number]:Encoding}}
  */
 const DEFAULT_ENCODINGS = {
-  3: UCEncodings[0],  // UTF-16LE with bom
-  4: UCEncodings[3]   // UTF-8 without bom
+  3: Encoding['UTF-16LE-BOM'],
+  4: Encoding['UTF-8']
 };
 
 
@@ -144,7 +155,7 @@ class Decoder {
    * @return {Popularity} the decoded popularity
    */
   decodePopularity(buffer) { 
-                                      //v-- no unicode support for email
+                                                       //v-- no unicode support for email
     const email = internal.decodeCString(this, buffer, 0x00);
     const rating = buffer[email.pastNullPos];
     const offset = email.pastNullPos + 1;
@@ -169,14 +180,14 @@ class Decoder {
 
     const encodingByte = buffer[0];
 
-    const dataBuffer = buffer.slice(1);         //v-- MIME will always be ISO-8895-1
+    const dataBuffer = buffer.subarray(1);                    //v-- MIME will always be ISO-8895-1
     const mimeData = internal.decodeCString(this, dataBuffer, 0x00);
     const mimeType = mimeData.string;
     const pictureType = dataBuffer[mimeData.pastNullPos];
-    const descriptionBuffer = dataBuffer.slice(mimeData.pastNullPos + 1);
+    const descriptionBuffer = dataBuffer.subarray(mimeData.pastNullPos + 1);
     const descData = internal.decodeCString(this, descriptionBuffer, encodingByte);
     const description = descData.string;
-    const pictureData = descriptionBuffer.slice(descData.pastNullPos);
+    const pictureData = descriptionBuffer.subarray(descData.pastNullPos);
 
     return {
       mimeType: mimeType,      //String
@@ -184,6 +195,27 @@ class Decoder {
       description: description,//String
       pictureData: new Data(pictureData) //BufferData
     };
+  }
+
+  /** Encodes the given picture data into a Buffer
+   * 
+   * @param {Picture} picture the picture information in the same format as returned by decodePicture
+   * 
+   * @return {Buffer} encoded picture data
+   */
+  encodePicture(picture) {
+    const defaultEncoding = DEFAULT_ENCODINGS[this.version];
+
+    const frameBuffers = [ 
+      Buffer.alloc(1, defaultEncoding.encodingByte),
+      internal.encodeCString(picture.mimeType, Encoding['ISO-8895-1']), // mime is always encoded in ISO-8895-1
+      Buffer.alloc(1, picture.pictureType),
+      internal.encodeCString(picture.description, defaultEncoding),
+      picture.pictureData.toBuffer()
+    ];
+    
+    // Return the resulting buffer
+    return Buffer.concat(frameBuffers);
   }
 
   /** Returns the encoding for the given buffer and encodingByte
@@ -202,7 +234,7 @@ class Decoder {
     }
 
     if (encodingByte === 0x00) { // ISO-8895-1 encoding
-      return new Encoding('ISO-8895-1', [], false);
+      return Encoding['ISO-8895-1'];
     }
 
     if (encodingByte === 0x01) { // UC (search for BOM and look up)

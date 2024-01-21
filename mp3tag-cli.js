@@ -3,6 +3,8 @@ const _ = require('lodash');
 
 const mp3tag = require('./mp3tag');
 const File = require('./file');
+const TagData = require('./tagdata'); // only needed for intellisense to know the type
+const Data = require('./data');
 
 const out = require('./output');
 
@@ -251,6 +253,18 @@ parser.defineTask('set-artist', {
   setFrameString(tagData, 'TPE1', argString);
 });
 
+
+parser.defineTask('set-cover', {
+  max_args: 2,
+  type: 'write',
+  arg_display: '[filename] [mime type]',
+  help_text: 'Sets/Unsets the cover picture (with optional mime type provided)'
+}, async function(tagData) {
+  writeCover(tagData, this.args[0], this.args[1]);
+});
+
+
+
 parser.defineTask('set-band', {
   max_args: 1,
   type: 'write',
@@ -441,6 +455,56 @@ async function exportCover(tagData, destination) {
 
   return {bytes:bytesWritten, filename:filename};
 }
+
+const KNOWN_MIME_TYPES = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.webp': 'image/webp'
+};
+
+
+/** Writes the given cover image into the mp3 cover picture frame
+ * 
+ * @param {TagData} tagData 
+ * @param {string} path 
+ * @param {string} mimeType 
+ * 
+ * @returns {Promise}
+ */
+async function writeCover(tagData, path, mimeType) {
+  if (!path) {
+    // simply remove any picture frame
+    return tagData.removeFrame('APIC');
+  }
+
+  if (!mimeType) {
+    // Check whether we can derive the mime type from the file name
+    const lowerPath = path.toLowerCase();
+    mimeType = _.find(KNOWN_MIME_TYPES, (mime,extension) => lowerPath.endsWith(extension));
+    if (!mimeType) {
+      throw new Error("Cannot determine mime type from file name, please specify it explicitly");
+    }
+  }
+
+  const imageBuffer = await File.readIntoBuffer(path);
+  const frameBuffer = tagData.decoder.encodePicture({
+    mimeType: mimeType,
+    pictureData: new Data(imageBuffer),
+    description: 'cover',
+    pictureType: 3 // type 3 is the cover front picture
+  });
+
+  tagData.setFrameBuffer('APIC', frameBuffer);
+}
+
+
+
+
+
+
 
 /** Generic string writing utiltiy for string properties
  */

@@ -155,5 +155,23 @@ File.open = function(path, mode, callback) {
   });  
 };
 
+
+/** Utility function to read a whole file into a buffer. Simply an 
+ *  promisified version of fs.readFile (usable before NodeJS v10)
+ * 
+ * @param {string} path the file path
+ * @returns {Promise<Buffer>} 
+ */
+File.readIntoBuffer = function(path) {
+  return new Promise((resolve, reject) => {
+    fs.readFile(path, (err, buffer) => {
+      if (err) {
+        return reject(err);
+      }
+      return resolve(buffer);
+    })
+  }); 
+};
+
 module.exports = File;
 

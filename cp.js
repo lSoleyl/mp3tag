@@ -97,5 +97,6 @@ const from = {
 
 const to = {
   "utf-16le": function(string) { return Buffer.from(string, 'utf16le'); },
-  "utf-8": function(string) { return Buffer.from(string, 'utf8'); }
+  "utf-8": function(string) { return Buffer.from(string, 'utf8'); },
+  "iso-8895-1": function(string) { return Buffer.from(string, 'latin1'); }
 };

@@ -118,9 +118,11 @@ The decoded popularity object has the following fields:
  The decoded picture object contains the following properties:
 
   * `mimeType:string`
-  * `pictureType:number` 
+  * `pictureType:number` - 0x3 = cover picture
   * `description:string`
   * `pictureData:Data` - a reference to the picture's data, which is basically a `Buffer` wrapper. The buffer can be retrieved by calling `toBuffer()` on it.
 
 The picture is stored in the `APIC` frame.
 
+### `Decoder.encodePicture(picture:Picture) -> Buffer`
+Encodes a given picture data (see above) into a buffer to be written into an `APIC` frame.

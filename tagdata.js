@@ -18,10 +18,12 @@ const Decoder = require('./decoder');
 
 class TagData {
 
-  /** @typedef {{major:number,minor:number}} Version
+  /** 
+   * @typedef {{major:number,minor:number}} Version
    */
 
-  /** @typedef {{offset:number,size:number}} Padding
+  /** 
+   * @typedef {{offset:number,size:number}} Padding
    */
 
   /**
