@@ -233,7 +233,7 @@ module.run = async function(argv) {
 
 const categories = [
   {key:'help', description:'Help'},
-  {key:'options', description:'Options'},
+  {key:'option', description:'Options'},
   {key:'source', description:'File source commands'},
   {key:'read', description:'Reading commands'},
   {key:'write', description:'Modifying commands'},

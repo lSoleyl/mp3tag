@@ -260,7 +260,7 @@ parser.defineTask('set-cover', {
   arg_display: '[filename] [mime type]',
   help_text: 'Sets/Unsets the cover picture (with optional mime type provided)'
 }, async function(tagData) {
-  writeCover(tagData, this.args[0], this.args[1]);
+  await writeCover(tagData, this.args[0], this.args[1]);
 });
 
 
@@ -487,8 +487,10 @@ async function writeCover(tagData, path, mimeType) {
     if (!mimeType) {
       throw new Error("Cannot determine mime type from file name, please specify it explicitly");
     }
+    out.debug(`detected mime type for cover image as: ${mimeType}`);
   }
 
+  out.debug(`loading cover picture into memory: ${path}`);
   const imageBuffer = await File.readIntoBuffer(path);
   const frameBuffer = tagData.decoder.encodePicture({
     mimeType: mimeType,
