@@ -121,7 +121,7 @@ parser.defineTask('export-title', {
 }, async function(tagData) {
   const property = this.args[0] || 'title';
   const buffer = tagData.getFrameBuffer('TIT2');
-  exportProperties[property] = buffer ? tagDat.decoder.decodeString(buffer) : '';
+  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : '';
 });
 
 parser.defineTask('export-track', {
