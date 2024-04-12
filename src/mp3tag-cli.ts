@@ -5,7 +5,7 @@ import './mp3tag';
 
 import { File } from './file';
 import './tagdata';
-import './data';
+import { Data } from './data';
 
 import * as out from './output';
 
@@ -16,7 +16,6 @@ import Interpolator from './cli/interpolator';
 import TagData from './tagdata';
 import { Comment } from './decoder';
 import { readHeader } from './mp3tag';
-import Data from './data';
 
 const options = {
   verbose: false
@@ -504,13 +503,9 @@ async function writeCover(tagData:TagData, path?:string, mimeType?:string) {
 
 
 
-
-
-
-
 /** Generic string writing utiltiy for string properties
  */
-function setFrameString(tagData, frameID, value) {
+function setFrameString(tagData:TagData, frameID:string, value:string) {
   if (typeof(value) !== 'string') {
     tagData.removeFrame(frameID); // Just remove the frame
   } else {

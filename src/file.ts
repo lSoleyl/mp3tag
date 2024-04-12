@@ -1,5 +1,8 @@
 import * as fs from 'fs';
 
+
+export type Writer = (buffer: Buffer, offset: number, length: number) => Promise<number>;
+
 /** A generic file class, which keeps track of the current writing position and
  *  provides some additional utility methods.
  */
@@ -99,7 +102,7 @@ export class File {
   /** Returns a function that can be repeatedly called to write a buffer into 
    *  this file.
    */
-  bufferWriter() {
+  bufferWriter(): Writer {
     return File.prototype.writeSlice.bind(this);
   }
 
