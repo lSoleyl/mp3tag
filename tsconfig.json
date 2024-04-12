@@ -14,7 +14,11 @@
     "skipLibCheck": true,
     "moduleResolution": "node16",
 
-    "outDir": "dist"
+    // temporary for migration
+    "allowJs": true,
+    "checkJs": false,
+
+    "outDir": "out"
   },
 
   "include": ["src/**/*"]

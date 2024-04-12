@@ -1,16 +1,22 @@
 #!/usr/bin/env node
-const _ = require('lodash');
+import * as _ from 'lodash';
 
-const mp3tag = require('./mp3tag');
-const File = require('./file');
-const TagData = require('./tagdata'); // only needed for intellisense to know the type
-const Data = require('./data');
+import './mp3tag';
 
-const out = require('./output');
+import './file';
+import './tagdata';
+import './data';
 
+import * as out from './output';
 
-const parser = require('./cli/taskParser');
-const Interpolator = require('./cli/interpolator');
+import * as parser from './cli/taskParser';
+import { Task, TaskType } from './cli/taskParser';
+import './cli/interpolator';
+import Interpolator from './cli/interpolator';
+import TagData from './tagdata';
+import { Comment } from './decoder';
+import { readHeader } from './mp3tag';
+import Data from './data';
 
 const options = {
   verbose: false
@@ -33,17 +39,13 @@ const options = {
  *    --set-track [trackNr]          Sets/Unsets the track number
  */
 
-/** @type {Interpolator}
- */
-let resolver;
+let resolver: Interpolator;
 
-/** @type {string} 
- */
-let sourceFile;
+let sourceFile: string;
 
-//Options
+// Options
 parser.defineTask('v', {
-  type:'option',
+  type: TaskType.Option,
   help_text: 'Verbose output'
 }, async function() {
   options.verbose = true;
@@ -52,14 +54,14 @@ parser.defineTask('v', {
 });
 
 
- //Sources
+// Sources
 parser.defineTask('in', {
   args:1,
-  type:'source',
+  type:TaskType.Source,
   arg_display:'[filename]',
   help_text: 'The source file to read. If not set, an empty file will be generated.'
-  }, async function() {
-    sourceFile = this.args[0]; //Set the source from which the file has been read
+  }, async function(this:Task) {
+    sourceFile = this.args[0]; // Set the source from which the file has been read
     
     const tagData = await getHeader(sourceFile);
     resolver = new Interpolator(sourceFile, tagData);
@@ -67,14 +69,16 @@ parser.defineTask('in', {
 });
 
 
-//Read operations
-const exportProperties = {}; // The collected properties to export
+// Read operations
+type PropertyValue = string|Comment|null|string[];
+
+const exportProperties:{[prop:string]:PropertyValue} = {}; // The collected properties to export
 parser.defineTask('export-album', {
   max_args:1,
-  type:'read',
+  type: TaskType.Read,
   arg_display: '[property name]',
   help_text: 'exports the album name'
-}, async function(tagData) {
+}, async function(tagData:TagData) {
   const property = this.args[0] || 'album';
   const buffer = tagData.getFrameBuffer('TALB');
   exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : '';
@@ -82,7 +86,7 @@ parser.defineTask('export-album', {
 
 parser.defineTask('export-artist', {
   max_args: 1,
-  type: 'read',
+  type: TaskType.Read,
   arg_display: '[property name]',
   help_text: 'exports the artist'
 }, async function(tagData) {
@@ -93,7 +97,7 @@ parser.defineTask('export-artist', {
 
 parser.defineTask('export-band', {
   max_args: 1,
-  type: 'read',
+  type: TaskType.Read,
   arg_display: '[property name]',
   help_text: 'exports the band name'
 }, async function(tagData) {
@@ -105,7 +109,7 @@ parser.defineTask('export-band', {
 
 parser.defineTask('export-cover', {
   max_args:1,
-  type:'read',
+  type:TaskType.Read,
   arg_display:'[destination]',
   help_text: 'Export the cover image (if any) to destination (if given, default is "./cover.[mimetype]")'
 }, async function(tagData) {
@@ -115,18 +119,18 @@ parser.defineTask('export-cover', {
 
 parser.defineTask('export-title', {
   max_args: 1,
-  type: 'read',
+  type: TaskType.Read,
   arg_display: '[property name]',
   help_text: 'exports the title'
 }, async function(tagData) {
   const property = this.args[0] || 'title';
   const buffer = tagData.getFrameBuffer('TIT2');
-  exportProperties[property] = buffer ? tagDat.decoder.decodeString(buffer) : '';
+  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : '';
 });
 
 parser.defineTask('export-track', {
   max_args: 1,
-  type: 'read',
+  type: TaskType.Read,
   arg_display: '[property name]',
   help_text: 'exports the track'
 }, async function(tagData) {
@@ -137,7 +141,7 @@ parser.defineTask('export-track', {
 
 parser.defineTask('export-publisher', {
   max_args: 1,
-  type: 'read',
+  type: TaskType.Read,
   arg_display: '[property name]',
   help_text: 'exports the publisher'
 }, async function(tagData) {
@@ -149,7 +153,7 @@ parser.defineTask('export-publisher', {
 
 parser.defineTask('export-comment-lang', {
   max_args: 1,
-  type: 'read',
+  type: TaskType.Read,
   arg_display: '[property name]',
   help_text: 'exports the comment\'s language'
 }, async function(tagData) {
@@ -160,7 +164,7 @@ parser.defineTask('export-comment-lang', {
 
 parser.defineTask('export-comment-short', {
   max_args: 1,
-  type: 'read',
+  type: TaskType.Read,
   arg_display: '[property name]',
   help_text: 'exports the comment\'s short text'
 }, async function(tagData) {
@@ -171,7 +175,7 @@ parser.defineTask('export-comment-short', {
 
 parser.defineTask('export-comment-long', {
   max_args: 1,
-  type: 'read',
+  type: TaskType.Read,
   arg_display: '[property name]',
   help_text: 'exports the comment text'
 }, async function(tagData) {
@@ -182,7 +186,7 @@ parser.defineTask('export-comment-long', {
 
 parser.defineTask('export-comment', {
   max_args: 1,
-  type: 'read',
+  type: TaskType.Read,
   arg_display: '[property name]',
   help_text: 'exports the comment'
 }, async function(tagData) {
@@ -194,7 +198,7 @@ parser.defineTask('export-comment', {
 parser.defineTask('export-text-frame', {
   min_args: 1,
   max_args: 2,
-  type: 'read',
+  type: TaskType.Read,
   arg_display: '[frame id] [property name]',
   help_text: 'Display the text content of a frame specified by id'
 }, async function(tagData) {
@@ -214,7 +218,7 @@ parser.defineTask('export-text-frame', {
 
 parser.defineTask('export-format', {
   max_args: 1,
-  type: 'read',
+  type: TaskType.Read,
   arg_display: '[format]',
   help_text: 'actually exports the properties, which were exported via export-* tasks. Supported formats are: json,...'
 }, async function(tagData) {
@@ -227,7 +231,7 @@ parser.defineTask('export-format', {
 });
 
 parser.defineTask('show-data', {
-  type:'read',
+  type:TaskType.Read,
   help_text:'Prints out the contained tag data'
 }, async function(tagData) {
   showData(tagData);
@@ -236,7 +240,7 @@ parser.defineTask('show-data', {
 // Write operations
 parser.defineTask('set-album', {
   max_args: 1,
-  type: 'write',
+  type: TaskType.Write,
   arg_display: '[name]',
   help_text: 'Sets/Unsets album name'
 }, async function(tagData) {
@@ -245,7 +249,7 @@ parser.defineTask('set-album', {
 
 parser.defineTask('set-artist', {
   max_args: 1,
-  type: 'write',
+  type: TaskType.Write,
   arg_display: '[name]',
   help_text: 'Sets/Unsets artist name'
 }, async function(tagData) {
@@ -256,7 +260,7 @@ parser.defineTask('set-artist', {
 
 parser.defineTask('set-cover', {
   max_args: 2,
-  type: 'write',
+  type: TaskType.Write,
   arg_display: '[filename] [mime type]',
   help_text: 'Sets/Unsets the cover picture (with optional mime type provided)'
 }, async function(tagData) {
@@ -267,7 +271,7 @@ parser.defineTask('set-cover', {
 
 parser.defineTask('set-band', {
   max_args: 1,
-  type: 'write',
+  type: TaskType.Write,
   arg_display: '[name]',
   help_text: 'Sets/Unsets band name'
 }, async function(tagData) {
@@ -277,7 +281,7 @@ parser.defineTask('set-band', {
 
 parser.defineTask('set-title', {
   max_args: 1,
-  type: 'write',
+  type: TaskType.Write,
   arg_display: '[title]',
   help_text: 'Sets/Unsets the title'
 }, async function(tagData) {
@@ -286,7 +290,7 @@ parser.defineTask('set-title', {
 
 parser.defineTask('set-track', {
   max_args: 1,
-  type: 'write',
+  type: TaskType.Write,
   arg_display: '[trackNr]',
   help_text: 'Sets/Unsets the track number'
 }, async function(tagData) {
@@ -295,7 +299,7 @@ parser.defineTask('set-track', {
 
 parser.defineTask('set-publisher', {
   max_args: 1,
-  type: 'write',
+  type: TaskType.Write,
   arg_display: '[publisher]',
   help_text: 'Sets/Unsets the publisher'
 }, async function(tagData) {
@@ -304,7 +308,7 @@ parser.defineTask('set-publisher', {
 
 parser.defineTask('set-comment', {
   max_args: 1,
-  type: 'write',
+  type: TaskType.Write,
   arg_display: '["lang;short;long"]',
   help_text: 'Set/Clear comment (a semicolon separated string)'
 }, async function(tagData) {
@@ -331,7 +335,7 @@ parser.defineTask('set-comment', {
 
 parser.defineTask('delete-frame', {
   args: 1,
-  type: 'write',
+  type: TaskType.Write,
   arg_display: '[frame id]',
   help_text: 'delete the frame(s) with the given frame id'
 }, async function(tagData) {
@@ -347,10 +351,10 @@ parser.defineTask('delete-frame', {
 
 //Sinks
 parser.defineTask('write', {
-  max_args:1,
-  type:'sink',
-  arg_display:'[filename]',
-  help_text:'Specifies that the changes, made to the tags should be written into filename. If filename is left out, the input file is used.' + 
+  max_args: 1,
+  type: TaskType.Sink,
+  arg_display: '[filename]',
+  help_text: 'Specifies that the changes, made to the tags should be written into filename. If filename is left out, the input file is used.' + 
   'The filename may not be left out if no filename was specified with --in'
 }, async function(tagData) {
   const target = this.args[0] || sourceFile;
@@ -377,12 +381,12 @@ parser.run(process.argv.slice(2)).catch((err) => {
 
 /** Simply prints all known data about the audio
  */
-function showData(tagData) {
+function showData(tagData: TagData) {
   const decoder = tagData.decoder;
   console.dir(tagData);
   console.log("\n");
 
-  function printOut(id, asName, decodefn) {
+  function printOut(id: string, asName: string, decodefn?: (buffer:Buffer) => any) {
     const decfn = decodefn || decoder.decodeString;
     const buffer = tagData.getFrameBuffer(id);
 
@@ -406,24 +410,26 @@ function showData(tagData) {
   printOut('TPE2', "Band");
   printOut('POPM', "Popularimeter", decoder.decodePopularity);
   printOut('APIC', "Picture", (buffer) => {
-    const res = decoder.decodePicture(buffer);
-    res.pictureData = res.pictureData.inspect();
-    return res;
+    const picture = decoder.decodePicture(buffer);
+    return {
+      ...picture,
+      pictureData: picture.pictureData.inspect()
+    };
   });
 }
 
 /** This function returns an mp3tag header based on the source.
  *  If the passed source is not a string, then an empty header will be returned.
  *
- * @param {string} source the mp3 file path to read the header from
+ * @param source the mp3 file path to read the header from
  * 
  * @return {Promise<TagData>} resolves to the loaded tag data or empty tag data if
  *                            no source has been provided.
  */
-async function getHeader(source) {
+async function getHeader(source:string) {
   if (typeof(source) === "string") {
     out.debug(`Loading audio file form '${source}'`);
-    return await mp3tag.readHeader(source);
+    return await readHeader(source);
   } else {
     throw new Error('No source file passed to load the audio from');
   }
@@ -433,13 +439,13 @@ async function getHeader(source) {
 
 /** This function is used to export the cover picture from the mp3 file.
  *  
- * @param {TagData} tagData the TagData object which contains the picture
- * @param {string} destination a filepath or undefined, if default filepath should be used
+ * @param tagData the TagData object which contains the picture
+ * @param destination a filepath or undefined, if default filepath should be used
  * 
  * @return {Promise<{bytes:number,filename:string}>} resolves to an info object of
  *                  where the cover picture has been written to.
  */
-async function exportCover(tagData, destination) {
+async function exportCover(tagData:TagData, destination:string) {
   const frameBuffer = tagData.getFrameBuffer('APIC');
   if (!frameBuffer) {
     throw new Error("File has no picture frame");
@@ -467,14 +473,8 @@ const KNOWN_MIME_TYPES = {
 
 
 /** Writes the given cover image into the mp3 cover picture frame
- * 
- * @param {TagData} tagData 
- * @param {string} path 
- * @param {string} mimeType 
- * 
- * @returns {Promise}
  */
-async function writeCover(tagData, path, mimeType) {
+async function writeCover(tagData:TagData, path?:string, mimeType?:string) {
   if (!path) {
     // simply remove any picture frame
     return tagData.removeFrame('APIC');
