@@ -3,7 +3,7 @@ import * as _ from 'lodash';
 
 import './mp3tag';
 
-import './file';
+import { File } from './file';
 import './tagdata';
 import './data';
 
