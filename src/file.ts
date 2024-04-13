@@ -9,7 +9,7 @@ export type Writer = (buffer: Buffer, offset: number, length: number) => Promise
 export class File {
   private pos = 0;
 
-  private constructor(private fd: number, private name: string, private size: number) {}
+  private constructor(private fd: number, public name: string, public size: number) {}
   
 
   /** Actual open function to create a file object by asynchronously opening the specified file.
@@ -113,9 +113,9 @@ export class File {
    * @param offset the file offset to start reading
    * @param length the length of the data to read
    * 
-   * @return {Promise<Buffer>} a promise that resolves to the read buffer
+   * @return a promise that resolves to the read buffer
    */
-  readSlice(offset: number, length: number) {
+  readSlice(offset: number, length: number): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const buffer = Buffer.alloc(length);
       if (length === 0) {
