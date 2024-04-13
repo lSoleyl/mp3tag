@@ -1,9 +1,10 @@
 /** Test for File class
  */
-const { File } = require('../file');
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
+
+import { File } from '../file';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 require('chai').should();
 
 

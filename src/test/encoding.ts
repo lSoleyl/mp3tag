@@ -1,12 +1,12 @@
 /** Test for encoding functions
  */
 
-var encoding = require('../encoding')
+import * as encoding from '../encoding';
 require('chai').should();
 
 describe("7BitUInt", function() {
-  var decode = encoding.decodeUInt7Bit
-  var encode = encoding.encodeUInt7Bit
+  const decode = encoding.decodeUInt7Bit
+  const encode = encoding.encodeUInt7Bit
 
   describe('decoding', function() {
     it("should return 0 for 0", function() {
