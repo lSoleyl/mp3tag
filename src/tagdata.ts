@@ -5,51 +5,109 @@
  * This class makes the assumption, that each tag id is actually unique for the whole tag.
  * This assumtion affects the methods getFrameBuffer/getFrameData/setFrameBuffer
  */
-const _ = require("lodash");
+import * as _ from 'lodash';
 
-const encoding = require('./encoding');
+import * as encoding from './encoding';
 
-const Data = require('./data');
-const DataSource = require('./dataSource');
-const File = require('./file');
-const Frame = require('./frame');
-const Decoder = require('./decoder');
-
-
+import { Data } from './data';
+import { DataSource } from './dataSource';
+import { File } from './file';
+import { Frame, FrameID, Padding } from './frame';
+import { Decoder, SupportedMajorVersion } from './decoder';
 
 
 
-class TagData {
+export interface Version {
+  major: number,
+  minor: number
+}
 
-  /** 
-   * @typedef {{major:number,minor:number}} Version
+
+export class TagData {
+  /** File read from. 
    */
+  private file: File;
 
-  /** 
-   * @typedef {{offset:number,size:number}} Padding
+  /** the version tuple {'major','minor'}
    */
+  private version: Version;
+
+  /** flags field from the header
+   */
+  private flags: number;
+
+  /** header size with frames and padding/footer = starting offset of audiodata
+   */
+  private size: number;
+
+  /** list of filtered frames (no zero size frames and no padding frames)
+   */
+  private frames: Frame[];
+
+  /** padding bytes {'offset', 'size'}
+   */
+  private padding: Padding;
+
+  /** location of the audio data in this mp3 file
+   */
+  private audioData: DataSource;
+
+  /** true, if adding new frames has depleted all padding and file must be rewritten
+   */
+  private rewrite = false;
+
+  /** true if any of the tag data has been changed since creation if the file isn't dirty saving into the same file is a no
+   */
+  private dirty = false;
+
+  private decoder: Decoder<SupportedMajorVersion>;
+
+  private hasFooter: boolean;
+
+
+  // Constant size of ID3Tag header/footer size
+  private static readonly TAG_HEADER_SIZE = 10;
+  private static readonly TAG_FOOTER_SIZE = 10;
+
 
   /**
-   * @param {File} file the file from which this tagdata has been read
-   * @param {Version} version the minor,major version tuple read from the header
-   * @param {number} flags the flags field from the header
-   * @param {number} size frame size with padding/footer = starting offset of audtio
-   * @param {Frame[]} frames list of filtered frames in this mp3 file (no zero size frames and no padding frames)
-   * @param {Padding} padding offset and size of padding in mp3 file
-   * @param {DataSource} audioData location of the audio data in this mp3 file
+   * @param file the file from which this tagdata has been read
+   * @param version the minor,major version tuple read from the header
+   * @param flags the flags field from the header
+   * @param size frame size with padding/footer = starting offset of audtio
+   * @param frames list of filtered frames in this mp3 file (no zero size frames and no padding frames)
+   * @param padding offset and size of padding in mp3 file
+   * @param audioData location of the audio data in this mp3 file
    */
-  constructor(file, version, flags, size, frames, padding, audioData) {
-    this.file = file;        //File read from
-    this.version = version;  //version tuple {'major','minor'}
-    this.flags = flags;      //flags field from the header
-    this.size = size ;       //header size with frames and padding/footer = starting offset of audiodata
-    this.frames = frames;    //list of filtered frames (no zero size frames and no padding frames)
-    this.padding = padding;  //padding bytes {'offset', 'size'}
-    this.audioData = audioData || new DataSource(file, size);
-    this.rewrite = false;    //true, if adding new frames has depleted all padding and file must be rewritten
-    this.dirty = false;      //true if any of the tag data has been changed since creation if the file isn't dirty saving into the same file is a noop
-    this.decoder = new Decoder(version);
+  constructor(file: File, version: Version, flags: number, size: number, frames: Frame[], padding: Padding, audioData?: DataSource) {
+    this.file = file;        
+    this.version = version;
+    this.flags = flags;
+    this.size = size;
+    this.frames = frames;
+    this.padding = padding;
+    this.audioData = audioData ?? new DataSource(file, size);
+    
+    const {major} = version;
+    if (major === 3 || major === 4) {
+      this.decoder = new Decoder(major);
+    } else {
+      throw new Error(`Unsupported major id3 version: ${version}`);
+    }
+
     this.hasFooter = version.major >= 4 && (flags & 0x10) != 0;
+  }
+
+  /** This function creates an empty tag with no frames and the audio data references the whole file.
+   * 
+   * @param audioFile the file containing only the audio data
+   * 
+   * @return the empty header object
+   */
+  public static noHeader(audioFile: File) : TagData {
+    // We must set the size to the TAG_HEADER_SIZE and padding start correctly or else writing this empty
+    // header into a new file will fail.
+    return new TagData(audioFile, {major:3, minor:0}, 0/*flags*/, TagData.TAG_HEADER_SIZE/*size*/, [], {offset:TagData.TAG_HEADER_SIZE, size:0}/*no padding*/, new DataSource(audioFile));
   }
 
   /** This simple getter searches the frames array for the first frame with the given id.
@@ -58,37 +116,33 @@ class TagData {
    *
    * @return {Frame} either the frame or undefined if not found
    */
-  getFrame(id) {
-    return _.find(this.frames, (frame) => { return frame.id == id; });
+  getFrame(id: FrameID): Frame|undefined {
+    return _.find(this.frames, frame => frame.id == id);
   }
 
   /** This simple getter returns all frames for the given id or an empty array
    *  if no such frame exists. There are cases where the frame id isn't actually
    *  a unique Identifier and multiple frames with the same id exist.
    *
-   * @param {string} id the frame's id
+   * @param id the frame's id
    *
-   * @return {Frame[]} the list of frames with that id
+   * @return the list of frames with that id
    */
-  getFrames(id) {
-    return _.filter(this.frames, (frame) => { return frame.id == id; });
+  getFrames(id: FrameID): Frame[] {
+    return _.filter(this.frames, frame => frame.id == id);
   }
 
   /** Returns the frame buffer of the frame, which identified by the given id.
    *  If no such frame is available, undefined is returned. The padding frame is not part of 
    *  of the frames, and can't be retrieved by this method.
    *
-   * @param {string} id the frame's id to get the buffer for.
+   * @param id the frame's id to get the buffer for.
    *
-   * @return {Buffer} the frame's buffer, or undefined if the frame does not exist.
+   * @return the frame's buffer, or undefined if the frame does not exist.
    */
-  getFrameBuffer(id) {
+  getFrameBuffer(id: FrameID): Buffer | undefined {
     const frame = this.getFrame(id);
-    if (frame) {
-      return frame.data.toBuffer();
-    }
-    
-    return undefined;
+    return frame?.data.toBuffer();
   }
 
   /** Returns the frame buffer of the frame, which identified by the given id.
@@ -96,12 +150,12 @@ class TagData {
    *  (in most cases custom frames) this method can be used to retrieve all buffers 
    *  for these frames. The buffers are returned as array.
    *
-   * @param {string} id the frame's id to get the buffer for.
+   * @param id the frame's id to get the buffer for.
    *
-   * @return {Buffer[]} an array of buffers, on for each frame found with the given id
+   * @return an array of buffers, on for each frame found with the given id
    */
-  getFrameBuffers(id) {
-    return _.map(this.getFrames(id), (frame) => { return frame.data.toBuffer(); });
+  getFrameBuffers(id: FrameID): Buffer[] {
+    return _.map(this.getFrames(id), frame => frame.data.toBuffer());
   }
 
   /** Inverse to getFrameBuffer.
@@ -109,10 +163,10 @@ class TagData {
    *  If the frame does not exist, it will be created, otherwise the frame buffer just
    *  gets replaced. The padding of TagData is adapted accordingly.
    *
-   * @param {string} id the frame's id
-   * @param {Buffer} buffer the buffer to set
+   * @param id the frame's id
+   * @param buffer the buffer to set
    */
-  setFrameBuffer(id, buffer) {
+  setFrameBuffer(id: FrameID, buffer: Buffer): void {
     this.reallocateFrame(id, buffer);
   }
 
@@ -120,9 +174,9 @@ class TagData {
    *  If the frame doesn't exist, it does nothing.
    *  The method doesn't prevent the deletion of required frames.
    *
-   * @param {string} id the id of the frame to delete
+   * @param id the id of the frame to delete
    */
-  removeFrame(id) {
+  removeFrame(id: FrameID): void {
     _.remove(this.frames, (frame) => { return frame.id == id; });
     this.realignFrames(); // Realign all frames after a frame got deleted
   }
@@ -131,12 +185,12 @@ class TagData {
    *  to fit the passed buffer. If the frame doesn't exist, it will be created.
    *  The passed buffer will be set as new data.
    *  
-   * @param {string} id the frame's id
-   * @param {Buffer} buffer the buffer to set for the frame 
+   * @param id the frame's id
+   * @param buffer the buffer to set for the frame 
    *
-   * @return {Frame} the reallocated frame
+   * @return the reallocated frame
    */
-  reallocateFrame(id, buffer) {
+  reallocateFrame(id: FrameID, buffer: Buffer): Frame {
     const frame = this.getFrame(id);
 
     // Allocate if frame doesn't exist  
@@ -167,7 +221,7 @@ class TagData {
    *  their `size` and position in the frames array. The padding and tag size will be
    *  adjusted if necessary.
    */
-  realignFrames() {
+  realignFrames(): void {
     let pos = TagData.TAG_HEADER_SIZE; // Starting position
     for (const frame of this.frames) {
       pos += Frame.HEADER_SIZE; // move position to start of data
@@ -197,12 +251,12 @@ class TagData {
    *  a frame with this id already exists. The frame will be allocated with
    *  enough size to hold the passed buffer.
    *
-   * @param {string} id the frame's id
-   * @param {Buffer} buffer the buffer to set as data.
+   * @param id the frame's id
+   * @param buffer the buffer to set as data.
    *
-   * @return {Frame} the newly allocated frame
+   * @return the newly allocated frame
    */
-  allocateFrame(id, buffer) {
+  allocateFrame(id: FrameID, buffer: Buffer): Frame {
     const frame = Frame.allocate(id, buffer);
 
     // Insert as last frame
@@ -219,19 +273,15 @@ class TagData {
    *  get updated and not the whole file.
    *  If the tag data hasn't been changed, then no write operation takes place.
    *
-   * @return {Promise<void>} A promise that gets resolved once the file has been written.
+   * @return A promise that gets resolved once the file has been written.
    */
-  async save() {
-    if (!this.file) {
-      throw new Error("This tag data has no source file!"); // Is true for generated headers
-    }
-
+  async save(): Promise<void> {
     return this.writeToFile(this.file.name);
   }
   
   /** Checks whether the footer should better be disabled based on a used padding
    */
-  checkFooter() {
+  checkFooter(): void {
     // Footer processing (we don't want to write the footer if we have included padding)
     if (this.hasFooter && this.padding.size > 0) {
       // remove footer, add it's size to the padding and disable the flag
@@ -244,9 +294,9 @@ class TagData {
   /** Returns the size of the tag's content not counting header and footer, but padding is included.
    *  This value is equal to the size value encoded in the tag header/footer.
    * 
-   * @return {number} the content size in bytes
+   * @return the content size in bytes
    */
-  getContentSize() {
+  getContentSize(): number {
     let size = this.size - TagData.TAG_HEADER_SIZE;
 
     if (this.hasFooter) {
@@ -259,18 +309,18 @@ class TagData {
   /** This method will write the id3 tag header into the given file. At the correct offset.
    *  This will not write the frames.
    *
-   * @param {File} file a File object
+   * @param file a File object
    * 
-   * @return {Promise<number>} resolves to the number of written bytes upon success. This should
-   *                           be equal to TagData.TAG_HEADER_SIZE
+   * @return a promise, which resolves to the number of written bytes upon success. 
+   *         This should be equal to TagData.TAG_HEADER_SIZE
    */
-  async writeTagHeader(file) {
+  async writeTagHeader(file: File): Promise<number> {
     // check whether we have to disable the footer to set the correct flags
     this.checkFooter(); 
 
     const header = Buffer.alloc(TagData.TAG_HEADER_SIZE);
 
-    header.asciiWrite("ID3"); // Write marker
+    header.write("ID3"); // Write marker
     header.writeUInt8(this.version.major,3);
     header.writeUInt8(this.version.minor,4);
     header.writeUInt8(this.flags, 5);
@@ -284,13 +334,13 @@ class TagData {
 
   /** This method will write the id3 tag footer if the file still has a footer
    *
-   * @param {File} file the File object to write into
+   * @param file the File object to write into
    * 
-   * @return {Promise<number>} resolves to the number of written bytes.
-   *                           This will equal TagData.TAG_FOOTER_SIZE if the file has a footer
-   *                           or 0 if the file doesn't need / cannot have a footer (due to padding)
+   * @return a promise, which resolves to the number of written bytes.
+   *         This will equal TagData.TAG_FOOTER_SIZE if the file has a footer
+   *         or 0 if the file doesn't need / cannot have a footer (due to padding)
    */
-  async writeTagFooter(file) {
+  async writeTagFooter(file: File): Promise<number> {
     this.checkFooter();
 
     if (!this.hasFooter) {
@@ -300,7 +350,7 @@ class TagData {
 
     const footer = Buffer.alloc(TagData.TAG_FOOTER_SIZE);
 
-    footer.asciiWrite("3DI"); // Write footer marker (basically ID3 reversed)
+    footer.write("3DI"); // Write footer marker (basically ID3 reversed)
     footer.writeUInt8(this.version.major,3);
     footer.writeUInt8(this.version.minor,4);
     footer.writeUInt8(this.flags, 5);
@@ -314,17 +364,17 @@ class TagData {
 
   /** Basically a getter for the decoder property
    * 
-   * @return {Decoder} the used decoder instance for this tag
+   * @return the used decoder instance for this tag
    */
-  getDecoder() {
+  getDecoder(): Decoder<SupportedMajorVersion> {
     return this.decoder;
   }
 
   /** Reads the audio data from the file into a buffer and returns it.
    * 
-   * @return {Promise<Buffer>} resolves to the buffer containing the file's audio data
+   * @return a promise, which resolves to the buffer containing the file's audio data
    */
-  async getAudioBuffer() {
+  async getAudioBuffer(): Promise<Buffer> {
     const data = await this.audioData.toData();
     return data.toBuffer();
   }
@@ -342,9 +392,9 @@ class TagData {
    * 
    * @param path the file's path to write into
    *
-   * @return {Promise<void>} gets resolved if the file has been successfully written.
+   * @return a promise, which gets resolved if the file has been successfully written.
    */
-  async writeToFile(path) {
+  async writeToFile(path: string): Promise<void> {
     const sameFile = (this.audioData.source.name === path);
 
     // No change & same file -> no write necessary
@@ -417,19 +467,17 @@ class TagData {
  */
 class AudioData {
   /** 
-   * @param {Data?} data the loaded audio data to write back. May be undefined if 
-   *                     writing back the audio isn't necessary.
+   * @param data the loaded audio data to write back. May be undefined if 
+   *             writing back the audio isn't necessary.
    */
-  constructor(data) {
-    this.data = data;
-  }
+  constructor(private data?: Data) {}
 
   /** 
-   * @param {File} file the file to write into
+   * @param file the file to write into
    * 
-   * @return {Promise<number>} resolves to the number of bytes written
+   * @return a promise, which resolves to the number of bytes written
    */
-  async writeToFile(file) {
+  async writeToFile(file: File): Promise<number> {
     if (this.data !== undefined) {
       return file.write(this.data.toBuffer());
     } else {
@@ -439,21 +487,3 @@ class AudioData {
   }
 }
 
-// Constant size of ID3Tag header/footer size
-TagData.TAG_HEADER_SIZE = 10;
-TagData.TAG_FOOTER_SIZE = 10;
-
-/** This function creates an empty tag with no frames and the audio data references the whole file.
- * 
- * @param {File} audioFile the file containing only the audio data
- * 
- * @return {TagData} the empty header object
- */
-TagData.noHeader = function(audioFile) {
-  // We must set the size to the TAG_HEADER_SIZE and padding start correctly or else writing this empty
-  // header into a new file will fail.
-  return new TagData(audioFile, {major:3, minor:0}, 0/*flags*/, TagData.TAG_HEADER_SIZE/*size*/, [], {offset:TagData.TAG_HEADER_SIZE, size:0}, new DataSource(audioFile));
-};
-
-// export class
-module.exports = TagData;

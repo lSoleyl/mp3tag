@@ -2,7 +2,8 @@
  *  into a task list.
  */
 import * as _  from 'lodash';
-import TagData from '../tagdata';
+
+import { TagData } from '../tagdata';
 
 
 const taskDefinitions: {[key:string]: TaskDefinition} = {};

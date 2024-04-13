@@ -5,9 +5,8 @@
 import * as _ from 'lodash';
 import * as util from 'util';
 import { Data } from './data';
-import { Encoding as EncodingName, SourceEncoding, TargetEncoding } from './cp';
+import { Encoding as EncodingName, TargetEncoding } from './cp';
 import * as cp from './cp';
-
 
 export interface Comment {
   language: string;
@@ -37,22 +36,22 @@ enum EncodingIdentifier {
   UTF_8 = 'UTF-8'
 }
 
-
+type EncodingBytes = 0x00 | 0x01 | 0x03 | undefined;
 
 //TODO: Change name to extends SupportedEncodings
-class Encoding<Name extends EncodingName> {
+class Encoding<Name extends EncodingName, EncodingByte extends EncodingBytes> {
   /**
    * @param name the name of the encoding
    * @param bom array of BOM bytes
    * @param dbe true if double-byte encoding (terminated wit 0x00 0x00)
    * @param encodingByte optional encoding byte used for identification
    */
-  constructor(public name:Name, public bom:number[], public dbe: boolean, public encodingByte?: number) {}
+  constructor(public name:Name, public bom:number[], public dbe: boolean, public encodingByte: EncodingByte) {}
 
   static [EncodingIdentifier.ISO_8895_1] = new Encoding(EncodingName.ISO_8895_1, [], false, 0x00);
   static [EncodingIdentifier.UTF_16_LE_BOM] = new Encoding(EncodingName.UTF_16LE, [0xFF, 0xFE], true, 0x01);
-  static [EncodingIdentifier.UTF_16_BE_BOM] = new Encoding(EncodingName.UTF_16BE, [0xFE, 0xFF], true);
-  static [EncodingIdentifier.UTF_8_BOM] = new Encoding(EncodingName.UTF_8, [0xEF, 0xBB, 0xBF], false);
+  static [EncodingIdentifier.UTF_16_BE_BOM] = new Encoding(EncodingName.UTF_16BE, [0xFE, 0xFF], true, undefined);
+  static [EncodingIdentifier.UTF_8_BOM] = new Encoding(EncodingName.UTF_8, [0xEF, 0xBB, 0xBF], false, undefined);
   static [EncodingIdentifier.UTF_8] = new Encoding(EncodingName.UTF_8, [], false, 0x03);
 }
 
@@ -70,6 +69,7 @@ const UCEncodings = [
 ];
 
 
+export type SupportedMajorVersion = 3 | 4;
 
 /** Defines the default encoding for the encodeString method
  */
@@ -81,13 +81,13 @@ const DEFAULT_ENCODINGS = {
 
 /** Decoder class, used to de- and encode frames
  */
-export class Decoder {
-  private version: number; // major version of tagData
+export class Decoder<Version extends SupportedMajorVersion> {
+  private version: Version; // major version of tagData
 
   /** Creates a new decoder for the given tag version
    */ 
-  constructor(version: Version) {
-    this.version = version.major;
+  constructor(majorVersion: Version) {
+    this.version = majorVersion;
   }
 
   /** This method decodes the given buffer into a js string.
@@ -268,11 +268,11 @@ export class Decoder {
 
     if (this.version >= 4) { // New encodings added with 2.4
       if (encodingByte === 0x02) {
-        return new Encoding(EncodingName.UTF_16BE, [], true); // UTF-16BE without BOM
+        return new Encoding(EncodingName.UTF_16BE, [], true, undefined); // UTF-16BE without BOM
       }
 
       if (encodingByte === 0x03) {
-        return new Encoding(EncodingName.UTF_8, [], false);
+        return new Encoding(EncodingName.UTF_8, [], false, undefined);
       }
     }
 
@@ -322,7 +322,7 @@ const internal = {
    *
    * @return decoded string
    */
-  decodeString: function(decoder: Decoder, buffer: Buffer, encodingByte?: number) {
+  decodeString: function<Version extends SupportedMajorVersion>(decoder: Decoder<Version>, buffer: Buffer, encodingByte?: number) {
     const encoding = decoder.getBufferEncoding(buffer, encodingByte);
     return cp.decodeBuffer(buffer.subarray(encoding.bom.length), encoding.name);
   },
@@ -336,7 +336,7 @@ const internal = {
    *
    * @return the decoded string object
    */
-  decodeCString: function(decoder: Decoder, buffer: Buffer, encodingByte: number) : DecodedCString {
+  decodeCString: function<Version extends SupportedMajorVersion>(decoder: Decoder<Version>, buffer: Buffer, encodingByte: number) : DecodedCString {
     const encoding = decoder.getBufferEncoding(buffer, encodingByte);
 
     
@@ -366,7 +366,7 @@ const internal = {
    *
    * @return the buffer with the encoded string
    */
-  encodeString: function<Name extends TargetEncoding>(string: string, encoding: Encoding<Name>) {
+  encodeString: function<Name extends TargetEncoding, EncodingByte extends EncodingBytes>(string: string, encoding: Encoding<Name, EncodingByte>) {
     const strBuffer = cp.encodeString(string, encoding.name);
     const result = Buffer.alloc(strBuffer.length+encoding.bom.length);
 
@@ -386,7 +386,7 @@ const internal = {
    *
    * @return the buffer with the encoded string
    */
-  encodeCString: function<Name extends TargetEncoding>(string: string, encoding: Encoding<Name>) {
+  encodeCString: function<Name extends TargetEncoding, EncodingByte extends EncodingBytes>(string: string, encoding: Encoding<Name, EncodingByte>) {
     return internal.encodeString(string+'\0', encoding);
   },
 

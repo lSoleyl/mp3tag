@@ -6,7 +6,7 @@ import { Data } from './data';
 import { File } from './file';
 
 export class DataSource {
-  private source: File;
+  public source: File;
   private offset: number;
   private size: number;
 

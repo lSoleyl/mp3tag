@@ -43,7 +43,11 @@ export class File {
     });  
   }
 
-
+  /** Getter for the current file offset (read/write pos) (in bytes)
+   */
+  get offset() {
+    return this.pos;
+  }
 
 
   /** Read data from file at the current file position into the passed buffer
@@ -143,7 +147,7 @@ export class File {
    * @param nBytes the number of bytes to move forward
    * @param relativeTo the position to move relative to 'pos' = current pos, 'start' = file start
    */
-  seek(nBytes:number, relativeTo:string) {
+  seek(nBytes:number, relativeTo:'pos'|'start' = 'pos') {
     const offset = (relativeTo === 'start') ? 0 : this.pos;
     this.pos = offset + nBytes;
   }

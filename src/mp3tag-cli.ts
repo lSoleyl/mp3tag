@@ -4,7 +4,6 @@ import * as _ from 'lodash';
 import './mp3tag';
 
 import { File } from './file';
-import './tagdata';
 import { Data } from './data';
 
 import * as out from './output';
@@ -13,7 +12,7 @@ import * as parser from './cli/taskParser';
 import { Task, TaskType } from './cli/taskParser';
 import './cli/interpolator';
 import Interpolator from './cli/interpolator';
-import TagData from './tagdata';
+import { TagData } from './tagdata';
 import { Comment } from './decoder';
 import { readHeader } from './mp3tag';
 
@@ -80,7 +79,7 @@ parser.defineTask('export-album', {
 }, async function(tagData:TagData) {
   const property = this.args[0] || 'album';
   const buffer = tagData.getFrameBuffer('TALB');
-  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : '';
+  exportProperties[property] = buffer ? tagData.getDecoder().decodeString(buffer) : '';
 });
 
 parser.defineTask('export-artist', {
@@ -91,7 +90,7 @@ parser.defineTask('export-artist', {
 }, async function(tagData) {
   const property = this.args[0] || 'artist';
   const buffer = tagData.getFrameBuffer('TPE1');
-  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : '';
+  exportProperties[property] = buffer ? tagData.getDecoder().decodeString(buffer) : '';
 });
 
 parser.defineTask('export-band', {
@@ -102,7 +101,7 @@ parser.defineTask('export-band', {
 }, async function(tagData) {
   const property = this.args[0] || 'band';
   const buffer = tagData.getFrameBuffer('TPE2');
-  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : '';
+  exportProperties[property] = buffer ? tagData.getDecoder().decodeString(buffer) : '';
 });
 
 
@@ -124,7 +123,7 @@ parser.defineTask('export-title', {
 }, async function(tagData) {
   const property = this.args[0] || 'title';
   const buffer = tagData.getFrameBuffer('TIT2');
-  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : '';
+  exportProperties[property] = buffer ? tagData.getDecoder().decodeString(buffer) : '';
 });
 
 parser.defineTask('export-track', {
@@ -135,7 +134,7 @@ parser.defineTask('export-track', {
 }, async function(tagData) {
   const property = this.args[0] || 'track';
   const buffer = tagData.getFrameBuffer('TRCK');
-  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : '';
+  exportProperties[property] = buffer ? tagData.getDecoder().decodeString(buffer) : '';
 });
 
 parser.defineTask('export-publisher', {
@@ -146,7 +145,7 @@ parser.defineTask('export-publisher', {
 }, async function(tagData) {
   const property = this.args[0] || 'publisher';
   const buffer = tagData.getFrameBuffer('TPUB');
-  exportProperties[property] = buffer ? tagData.decoder.decodeString(buffer) : '';
+  exportProperties[property] = buffer ? tagData.getDecoder().decodeString(buffer) : '';
 });
 
 
@@ -158,7 +157,7 @@ parser.defineTask('export-comment-lang', {
 }, async function(tagData) {
   const property = this.args[0] || 'comment-lang';
   const buffer = tagData.getFrameBuffer('COMM');
-  exportProperties[property] = buffer ? tagData.decoder.decodeComment(buffer).language : '';
+  exportProperties[property] = buffer ? tagData.getDecoder().decodeComment(buffer).language : '';
 });
 
 parser.defineTask('export-comment-short', {
@@ -169,7 +168,7 @@ parser.defineTask('export-comment-short', {
 }, async function(tagData) {
   const property = this.args[0] || 'comment-short';
   const buffer = tagData.getFrameBuffer('COMM');
-  exportProperties[property] = buffer ? tagData.decoder.decodeComment(buffer).short : '';
+  exportProperties[property] = buffer ? tagData.getDecoder().decodeComment(buffer).short : '';
 });
 
 parser.defineTask('export-comment-long', {
@@ -180,7 +179,7 @@ parser.defineTask('export-comment-long', {
 }, async function(tagData) {
   const property = this.args[0] || 'comment-long';
   const buffer = tagData.getFrameBuffer('COMM');
-  exportProperties[property] = buffer ? tagData.decoder.decodeComment(buffer).long : '';
+  exportProperties[property] = buffer ? tagData.getDecoder().decodeComment(buffer).long : '';
 });
 
 parser.defineTask('export-comment', {
@@ -191,7 +190,7 @@ parser.defineTask('export-comment', {
 }, async function(tagData) {
   const property = this.args[0] || 'comment';
   const buffer = tagData.getFrameBuffer('COMM');
-  exportProperties[property] = buffer ? tagData.decoder.decodeComment(buffer) : '';
+  exportProperties[property] = buffer ? tagData.getDecoder().decodeComment(buffer) : '';
 });
 
 parser.defineTask('export-text-frame', {
@@ -204,7 +203,7 @@ parser.defineTask('export-text-frame', {
   const frameId = this.args[0];
   const property = this.args[1] || frameId;
   // could be multiple frames with the same id
-  const frameStrings = _.map(tagData.getFrameBuffers(frameId), function(buffer) { return tagData.decoder.decodeString(buffer); });
+  const frameStrings = _.map(tagData.getFrameBuffers(frameId), buffer => tagData.getDecoder().decodeString(buffer));
 
   if (frameStrings.length == 0) {
     exportProperties[property] = null;
@@ -327,7 +326,7 @@ parser.defineTask('set-comment', {
       comment = {language: parts[0], short:parts[1], long:parts[2]};
     }
 
-    tagData.setFrameBuffer('COMM', tagData.decoder.encodeComment(comment));
+    tagData.setFrameBuffer('COMM', tagData.getDecoder().encodeComment(comment));
   }
 });
 
@@ -381,7 +380,7 @@ parser.run(process.argv.slice(2)).catch((err) => {
 /** Simply prints all known data about the audio
  */
 function showData(tagData: TagData) {
-  const decoder = tagData.decoder;
+  const decoder = tagData.getDecoder();
   console.dir(tagData);
   console.log("\n");
 
@@ -389,7 +388,7 @@ function showData(tagData: TagData) {
     const decfn = decodefn || decoder.decodeString;
     const buffer = tagData.getFrameBuffer(id);
 
-    let result = buffer ? decfn.call(decoder, tagData.getFrameBuffer(id)) : "";
+    let result = buffer ? decfn.call(decoder, buffer) : "";
     if (typeof result !== 'string') {
       result = JSON.stringify(result, null, 2);
     }  
@@ -450,7 +449,7 @@ async function exportCover(tagData:TagData, destination:string) {
     throw new Error("File has no picture frame");
   }
 
-  const pic = tagData.decoder.decodePicture(frameBuffer);
+  const pic = tagData.getDecoder().decodePicture(frameBuffer);
   const filename = destination || ("cover." + pic.mimeType.split('/')[1]);
   
   const file = await File.open(filename, "w");
@@ -491,7 +490,7 @@ async function writeCover(tagData:TagData, path?:string, mimeType?:string) {
 
   out.debug(`loading cover picture into memory: ${path}`);
   const imageBuffer = await File.readIntoBuffer(path);
-  const frameBuffer = tagData.decoder.encodePicture({
+  const frameBuffer = tagData.getDecoder().encodePicture({
     mimeType: mimeType,
     pictureData: new Data(imageBuffer),
     description: 'cover',
@@ -509,6 +508,6 @@ function setFrameString(tagData:TagData, frameID:string, value:string) {
   if (typeof(value) !== 'string') {
     tagData.removeFrame(frameID); // Just remove the frame
   } else {
-    tagData.setFrameBuffer(frameID, tagData.decoder.encodeString(value));
+    tagData.setFrameBuffer(frameID, tagData.getDecoder().encodeString(value));
   }
 }
