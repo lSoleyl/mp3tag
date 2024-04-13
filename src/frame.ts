@@ -28,6 +28,13 @@ export class Frame {
    */
   private constructor(public id: FrameID, public pos: number, public size: number, public data: Data, public flags = 0) {}
 
+
+  /** Used to check whether this frame is a padding frame
+   *  Returns false for all regular frames
+   */
+  isPadding(): boolean { return false; }
+
+
   /** Returns a padding structure {offset,size} for the
    *  padding, which this frame represents. For regular non-padding
    *  frames, this returns an empty padding after this frame.
@@ -137,8 +144,16 @@ export class Frame {
   }
 }
 
+/** There are no such thing as a padding frame in ID3, but we return this structure as a placeholder
+ *  for the padding area when Frame.read() is called at the start of the padding area.
+ */
 export class PaddingFrame implements Padding {
   constructor(public offset: number, public size: number) {}
+
+  /** Used to check whether this frame is a padding frame
+   *  Returns true for all padding frames
+   */
+  isPadding(): boolean { return true; }
 
   /** Returns a padding structure {offset,size} for the
    *  padding, which this frame represents. If this frame 

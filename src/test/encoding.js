@@ -2,9 +2,7 @@
  */
 
 var encoding = require('../encoding')
-var should = require('chai').should()
-
-
+require('chai').should();
 
 describe("7BitUInt", function() {
   var decode = encoding.decodeUInt7Bit

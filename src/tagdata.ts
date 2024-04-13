@@ -66,8 +66,8 @@ export class TagData {
 
 
   // Constant size of ID3Tag header/footer size
-  private static readonly TAG_HEADER_SIZE = 10;
-  private static readonly TAG_FOOTER_SIZE = 10;
+  public static readonly TAG_HEADER_SIZE = 10;
+  public static readonly TAG_FOOTER_SIZE = 10;
 
 
   /**

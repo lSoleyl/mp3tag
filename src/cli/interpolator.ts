@@ -3,7 +3,8 @@
  *  trying to automatically rename a file based on it's tag data or vice versa.
  */
 
-const _ = require('lodash');
+import * as _ from 'lodash';
+import { TagData } from '../tagdata';
 
 //TODO: Add more interpolation functionality, like var navigation
 
@@ -11,11 +12,11 @@ const _ = require('lodash');
 const variables = {
   /** Retrieves the interpolator's source file.
    * 
-   * @param {Interpolator} interpolator the interpolator instance to get the source from
+   * @param interpolator the interpolator instance to get the source from
    * 
-   * @return {Promise<string>} resolves to the interpolator's source file
+   * @return a promise, which resolves to the interpolator's source file
    */
-  'source': async function(interpolator)  {
+  'source': async function(interpolator: Interpolator)  {
     return interpolator.source;
   }
 };
@@ -24,26 +25,33 @@ const variables = {
 const varPrefix = '$';
 const varPostfix = '';
 
+type VariableCache = Partial<Record<keyof typeof variables, string>>;
 
-class Interpolator {
+export class Interpolator {
+  /** the file, from which the tagdata has been parsed
+   */
+  public source: string; 
+
+  /** cached variable values to only calculate them once
+   */
+  private varCache: VariableCache = {};
+
   /** Should be called by the --in task if it receives a file as parameter
    * 
-   * @param {string} sourceFile the file, from which the tagdata has been parsed
-   * @param {TagData} tagData the parsed tagdata
+   * @param ourceFile the file, from which the tagdata has been parsed
+   * @param tagData the parsed tagdata
    */
-  constructor(sourceFile, tagData) {
+  constructor(sourceFile: string, private tagData: TagData) {
     this.source = sourceFile;
-    this.tagData = tagData;
-    this.varCache = {}; // cached variable values to only calculate them once
   }
 
   /** Should be called to interpolate the given string and replace all variables in it
    * 
-   * @param {string} rawString the string to replace the variables in 
+   * @param rawString the string to replace the variables in 
    *
-   * @return {Promise<string>} resolves to the interpolated string
+   * @return a promise, which resolves to the interpolated string
    */
-  async interpolate(rawString) {
+  async interpolate(rawString: string) {
     let result = rawString;
 
     if (!result) {
@@ -54,25 +62,29 @@ class Interpolator {
     await this.loadVariables(rawString);
 
     // Replace all occurring variables
-    _.each(variables, (ifn, varName) => {
+    let varName: keyof typeof variables;
+    for (varName in variables) {
       const fullVarName = varPrefix + varName + varPostfix;
-      result = result.replace(fullVarName, this.varCache[varName]);
-    });
+      result = result.replace(fullVarName, this.varCache[varName]!); // now that all variables are preloaded, we can assume that none is undefined
+    }
 
     return result;
   }
 
   /** Loads all occuring variables into varcache
    *  
-   * @param {string} rawString the string to load the variables for
+   * @param rawString the string to load the variables for
    * 
-   * @return {Promise<string[]>} a promise, which resolves when all variables are loaded
+   * @return a promise, which resolves when all variables are loaded
    *         into the variable cache. The resolved value are the variable values.
    *         The promise gets rejected if one of the interpolation functions fails
    */
-  loadVariables(rawString) {
-    const variablePromises = [];
-    _.each(variables, (interpolateFn, varName) => {
+  loadVariables(rawString: string) {
+    const variablePromises: Promise<string>[] = [];
+
+    let varName: keyof typeof variables;
+    for (varName in variables) {
+      const interpolateFn = variables[varName];
       const fullVarName = varPrefix + varName + varPostfix;
       if (rawString.indexOf(fullVarName) !== -1) {
         if (!this.varCache[varName]) {
@@ -82,10 +94,8 @@ class Interpolator {
           }));
         }
       }
-    });
-
+    }
+      
     return Promise.all(variablePromises);
   }
 }
-
-module.exports = Interpolator;

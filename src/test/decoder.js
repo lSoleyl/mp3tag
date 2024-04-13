@@ -1,10 +1,10 @@
 /** Tests for Decoder class
  */
 
-var Decoder = require('../decoder');
-var should = require('chai').should();
+const { Decoder } = require('../decoder');
+require('chai').should();
 
-var _ = require('lodash');
+const _ = require('lodash');
 
 describe('Decoder V3', function() {
     var decoder = new Decoder({major:3});

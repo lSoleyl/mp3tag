@@ -30,7 +30,7 @@
     "node": ">=18.2.0"
   },
   "scripts": {
-    "test": "mocha test/",
+    "test": "mocha out/test/",
     "build": "tsc"
   },
   "bin": "./mp3tag-cli.js",

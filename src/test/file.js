@@ -1,6 +1,6 @@
 /** Test for File class
  */
-const File = require('../file');
+const { File } = require('../file');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');

@@ -1,26 +1,25 @@
-//External dependencies
-const _ = require('lodash');
+// External dependencies
+import * as _ from 'lodash';
 
-//Utilities
-const encoding = require('./encoding');
+// Utilities
+import * as encoding from './encoding';
 
-//Classes
-const File = require('./file');
-const TagData = require('./tagdata');
-const Frame = require('./frame');
+// Classes
+import { File } from './file';
+import { TagData } from './tagdata';
+import { Frame, Padding, PaddingFrame } from './frame';
 
+/** Reads the id3v2 tag data from the provided file.
+ *  This is the only exported function as the root entry point into the library.
+ * 
+ * @param path the file path to read the tagdata from
+ * 
+ * @return a promise, which resolves to the parsed tag data
+ */
+export function readHeader(path: string): Promise<TagData> { 
+  return readID3v2(path);
+}
 
-module.exports = {
-  /** Reads the id3v2 tag data from the provided file.
-   * 
-   * @param {string} path the file path to read the tagdata from
-   * 
-   * @return {Promise<TagData>} resolves to the parsed tag data
-   */
-  readHeader: function(path) { 
-    return readID3v2(path);
-  }
-};
 
 /** Reads the id3v2 tag data from the provided file. 
  * 
@@ -28,7 +27,7 @@ module.exports = {
  * 
  * @return {Promise<TagData>} resolves to the parsed tag data
  */
-async function readID3v2(path) {
+async function readID3v2(path: string) {
   const file = await File.open(path, "r");
 
   const header = Buffer.alloc(TagData.TAG_HEADER_SIZE);
@@ -38,7 +37,7 @@ async function readID3v2(path) {
     throw new Error("Can't read ID3 tag header!");
   }
 
-  const marker = header.toString('ASCII', 0, 3);
+  const marker = header.toString('ascii', 0, 3);
   const majorVersion = header.readUInt8(3);
   const minorVersion = header.readUInt8(4);
   const flags = header.readUInt8(5);
@@ -80,42 +79,37 @@ async function readID3v2(path) {
     frames = frames || [];
 
     const padding = getPadding(frames, headerSize);  // Filter out padding
-    frames = _.filter(frames, (frame) => { return !frame.padding; });
+    const dataFrames = _.filter(frames, frame => !frame.isPadding()) as Frame[];
 
-    return new TagData(file, {'major':majorVersion, 'minor':minorVersion}, flags, headerSize, frames, padding);    
+    return new TagData(file, {'major':majorVersion, 'minor':minorVersion}, flags, headerSize, dataFrames, padding);    
   }
 }
 
-/** @typedef {{offset:number,size:number}} Padding
- */
-
 /** This function determines the padding offset and size for the given frames.
  *
- * @param {Frame[]} frames the frames which were returned by getFrames (ordered in that way)
+ * @param frames the frames which were returned by getFrames (ordered in that way)
  *
- * @return {Padding} an object  which represents the file's padding.
- *                  Length will be zero if file isn't padded.
+ * @return an object  which represents the file's padding.
+ *         Length will be zero if file isn't padded.
  */
-function getPadding(frames) {
+function getPadding(frames: (Frame|PaddingFrame)[], headerSize: number): Padding {
   // Last frame is the padding frame (if any)
-  const lastFrame = frames[frames.length-1];
+  // In case we read 0 frames, we generate an empty padding starting at the end of the header
+  const lastFrame = frames[frames.length-1] ?? new PaddingFrame(headerSize, 0);
   return lastFrame.getPadding();
 }
 
 /** Reads the frames from the provided tag file into a frame array. The first frame is
  *  read from the current file position and frame reading stops at file position `tagSize`.
  * 
- * @param {File} file the file to read the frames from
- * @param {number} tagSize the parsed tag size (position in file where the frames end)
+ * @param file the file to read the frames from
+ * @param tagSize the parsed tag size (position in file where the frames end)
  * 
  * @return {Promise<Frame[]>} resolves to all parsed frames including padding frames if present.
  */
-async function readFrames(file, tagSize) {
-  /** @type {Frame[]}
-   */
+async function readFrames(file: File, tagSize: number) {
   const frames = [];
-
-  while (file.pos < tagSize) {
+  while (file.offset < tagSize) {
     frames.push(await Frame.read(file, tagSize));
   }
 

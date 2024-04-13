@@ -6,12 +6,11 @@ import './mp3tag';
 import { File } from './file';
 import { Data } from './data';
 
-import * as out from './output';
-
+import * as out from './cli/output';
 import * as parser from './cli/taskParser';
+
 import { Task, TaskType } from './cli/taskParser';
-import './cli/interpolator';
-import Interpolator from './cli/interpolator';
+import { Interpolator } from './cli/interpolator';
 import { TagData } from './tagdata';
 import { Comment } from './decoder';
 import { readHeader } from './mp3tag';
