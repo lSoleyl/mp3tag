@@ -7,7 +7,7 @@ require('chai').should();
 const _ = require('lodash');
 
 describe('Decoder V3', function() {
-    var decoder = new Decoder({major:3});
+    var decoder = new Decoder(3);
 
     var endecodeString = function(str) {
         return decoder.decodeString(decoder.encodeString(str));
@@ -54,7 +54,7 @@ describe('Decoder V3', function() {
 });
 
 describe('Decoder V4', function() {
-    var decoder = new Decoder({major:4});
+    var decoder = new Decoder(4);
 
     var endecodeString = function(str) {
         return decoder.decodeString(decoder.encodeString(str));

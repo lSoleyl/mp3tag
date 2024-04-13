@@ -18,7 +18,8 @@
     "allowJs": true,
     "checkJs": false,
 
-    "outDir": "out"
+    "outDir": "out",
+    "sourceMap": true
   },
 
   "include": ["src/**/*"]
