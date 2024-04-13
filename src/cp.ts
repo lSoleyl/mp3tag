@@ -6,12 +6,18 @@
 import * as _ from 'lodash';
 
 
-enum SourceEncoding {
-  ISO8895_1 = 'iso-8895-1',
-  UTF_16LE = 'utf-16le',
-  UTF_16BE = 'utf-16be',
-  UTF_8 = 'utf-8'
+export enum Encoding {
+  ISO_8895_1 = 'ISO-8895-1',
+  UTF_16LE = 'UTF-16LE',
+  UTF_16BE = 'UTF-16BE',
+  UTF_8 = 'UTF-8'
 }
+
+// All supported buffer->string encodings
+export type SourceEncoding = Encoding.ISO_8895_1 | Encoding.UTF_16LE | Encoding.UTF_16BE | Encoding.UTF_8;
+
+// All supported string->buffer encodings
+export type TargetEncoding = Encoding.ISO_8895_1 | Encoding.UTF_16LE | Encoding.UTF_8;
 
 
 /**
@@ -20,9 +26,8 @@ enum SourceEncoding {
  * 
  * @return the decoded string
  */
-export function fromBuffer<T extends string>(buffer: Buffer, encoding: Lowercase<T> extends SourceEncoding ? T : SourceEncoding) {
-  const sourceEncoding = String(encoding).toLowerCase() as SourceEncoding;
-  const decoder = from[sourceEncoding];
+export function decodeBuffer<T extends SourceEncoding>(buffer: Buffer, encoding: T) {
+  const decoder = from[encoding];
   if (!decoder) {
     throw new Error(`Unsupported encoding: '${encoding}'`);
   }
@@ -30,11 +35,6 @@ export function fromBuffer<T extends string>(buffer: Buffer, encoding: Lowercase
   return decoder(buffer);
 }
 
-enum TargetEncoding {
-  ISO8895_1 = 'iso-8895-1',
-  UTF_16LE = 'utf-16le',
-  UTF_8 = 'utf-8'
-}
 
 /**
  * @param string the string to encode
@@ -42,9 +42,8 @@ enum TargetEncoding {
  * 
  * @return {Buffer} the string encoded in the specified encoding
  */
-export function fromString<T extends string>(string: string, encoding: Lowercase<T> extends TargetEncoding ? T : TargetEncoding) { 
-  const targetEncoding = String(encoding).toLowerCase() as TargetEncoding;
-  const encoder = to[targetEncoding];
+export function encodeString<T extends TargetEncoding>(string: string, encoding: T) { 
+  const encoder = to[encoding];
   if (!encoder) {
     throw new Error(`Unsupported encoding: '${encoding}'`);
   }
@@ -59,7 +58,7 @@ const from = {
    * 
    * @return the decoded string
    */
-  [SourceEncoding.ISO8895_1]: function(buffer: Buffer) {
+  [Encoding.ISO_8895_1]: function(buffer: Buffer) {
     let result = "";
     _.each(buffer, function(byte) {
       result += String.fromCharCode(byte)
@@ -72,14 +71,14 @@ const from = {
    * 
    * @return the decoded string
    */
-  [SourceEncoding.UTF_16LE]: (buffer: Buffer) => buffer.toString('utf16le'),
+  [Encoding.UTF_16LE]: (buffer: Buffer) => buffer.toString('utf16le'),
 
   /**
    * @param buffer the buffer to decode into a string
    * 
    * @return the decoded string
    */
-  [SourceEncoding.UTF_16BE]: function(buffer: Buffer) {
+  [Encoding.UTF_16BE]: function(buffer: Buffer) {
     const bufferLE = Buffer.alloc(buffer.length);
 
     // Copy the passed buffer into bufferLE while swapping the bytes, making it a LE buffer
@@ -92,7 +91,7 @@ const from = {
     }
 
     // Now we can use our LE conversion
-    return from[SourceEncoding.UTF_16LE](bufferLE);
+    return from[Encoding.UTF_16LE](bufferLE);
   },
 
   /**
@@ -100,12 +99,12 @@ const from = {
    * 
    * @return the decoded string
    */
-  [SourceEncoding.UTF_8]: (buffer: Buffer) => buffer.toString('utf8')
+  [Encoding.UTF_8]: (buffer: Buffer) => buffer.toString('utf8')
 };
 
 
 const to = {
-  [TargetEncoding.UTF_16LE]: (string: string) => Buffer.from(string, 'utf16le'),
-  [TargetEncoding.UTF_8]: (string: string) => Buffer.from(string, 'utf8'),
-  [TargetEncoding.ISO8895_1]: (string: string) => Buffer.from(string, 'latin1')
+  [Encoding.UTF_16LE]: (string: string) => Buffer.from(string, 'utf16le'),
+  [Encoding.UTF_8]: (string: string) => Buffer.from(string, 'utf8'),
+  [Encoding.ISO_8895_1]: (string: string) => Buffer.from(string, 'latin1')
 };
