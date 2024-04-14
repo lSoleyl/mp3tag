@@ -3,7 +3,8 @@
   "version": "2.0.0",
   "description": "A library for reading/writing mp3 tag data",
   "author": "lSoleyl <lsoleyl@gmail.com>",
-  "main": "mp3tag.js",
+  "main": "./out/mp3tag.js",
+  "bin": "./out/cli/mp3tag-cli.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/lSoleyl/mp3tag"
@@ -35,6 +36,5 @@
     "test": "mocha out/test/",
     "build": "tsc"
   },
-  "bin": "./mp3tag-cli.js",
   "license": "MIT"
 }

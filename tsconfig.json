@@ -14,11 +14,8 @@
     "skipLibCheck": true,
     "moduleResolution": "node16",
 
-    // temporary for migration
-    "allowJs": true,
-    "checkJs": false,
-
     "outDir": "out",
+    "declaration": true,
     "sourceMap": true
   },
 

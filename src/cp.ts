@@ -3,8 +3,6 @@
  *  
  *  BOMs are not generated...
  */
-import * as _ from 'lodash';
-
 
 export enum Encoding {
   ISO_8895_1 = 'ISO-8895-1',
@@ -60,7 +58,7 @@ const from = {
    */
   [Encoding.ISO_8895_1]: function(buffer: Buffer) {
     let result = "";
-    _.each(buffer, function(byte) {
+    buffer.forEach(byte => {
       result += String.fromCharCode(byte)
     });
     return result;

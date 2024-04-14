@@ -2,8 +2,6 @@
  *  parameter strings based on the source filename and tag data, which is useful when
  *  trying to automatically rename a file based on it's tag data or vice versa.
  */
-
-import * as _ from 'lodash';
 import { TagData } from '../tagdata';
 
 //TODO: Add more interpolation functionality, like var navigation

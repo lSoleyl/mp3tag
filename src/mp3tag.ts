@@ -1,6 +1,3 @@
-// External dependencies
-import * as _ from 'lodash';
-
 // Utilities
 import * as encoding from './encoding';
 
@@ -79,7 +76,7 @@ async function readID3v2(path: string) {
     frames = frames || [];
 
     const padding = getPadding(frames, headerSize);  // Filter out padding
-    const dataFrames = _.filter(frames, frame => !frame.isPadding()) as Frame[];
+    const dataFrames = frames.filter(frame => !frame.isPadding()) as Frame[];
 
     return new TagData(file, {'major':majorVersion, 'minor':minorVersion}, flags, headerSize, dataFrames, padding);    
   }

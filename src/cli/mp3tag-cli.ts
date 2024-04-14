@@ -1,19 +1,17 @@
 #!/usr/bin/env node
 import * as _ from 'lodash';
 
-import './mp3tag';
+import { File } from '../file';
+import { Data } from '../data';
 
-import { File } from './file';
-import { Data } from './data';
+import * as out from './output';
+import * as parser from './taskParser';
 
-import * as out from './cli/output';
-import * as parser from './cli/taskParser';
-
-import { Task, TaskType } from './cli/taskParser';
-import { Interpolator } from './cli/interpolator';
-import { TagData } from './tagdata';
-import { Comment } from './decoder';
-import { readHeader } from './mp3tag';
+import { Task, TaskType } from './taskParser';
+import { Interpolator } from './interpolator';
+import { TagData } from '../tagdata';
+import { Comment } from '../decoder';
+import { readHeader } from '../mp3tag';
 
 const options = {
   verbose: false

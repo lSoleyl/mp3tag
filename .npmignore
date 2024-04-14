@@ -1,0 +1,8 @@
+# Only include the compiled js and d.ts files in the published package while excluding any test files
+src/
+out/test
+.vscode
+tsconfig.json
+
+*.url
+*.js.map
