@@ -164,13 +164,3 @@ export class PaddingFrame implements Padding {
     return this;
   }
 }
-
-
-
-
-
-
-
-
-//Export class
-module.exports = Frame;
